@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "profiles": [
+    {
+      "id": "callable_fixture",
+      "name": "Authorized callable fixture",
+      "enabled": false,
+      "addonPath": "../python-adapter-host/tests/fixtures/fake_kodi_addon",
+      "addonId": "script.module.fake",
+      "module": "adapter_host.kodi.adapters.callable_stream_resolver",
+      "callable": "resolve",
+      "workerTimeoutSeconds": 5,
+      "adapterConfig": {
+        "targetModule": "callable_stream_fixture",
+        "targetCallable": "get_stream_data",
+        "resultMode": "tuple"
+      }
+    }
+  ]
+}

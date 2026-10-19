@@ -1,0 +1,13 @@
+[
+  {
+    "id": "example",
+    "name": "Example",
+    "manifestUrl": "https://addon.example/manifest.json",
+    "enabled": false,
+    "contentTypes": {
+      "movie": false,
+      "series": true,
+      "anime": true
+    }
+  }
+]

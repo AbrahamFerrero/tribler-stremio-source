@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "providers": [
+    {
+      "kind": "internet-archive",
+      "enabled": false
+    },
+    {
+      "kind": "static",
+      "enabled": true,
+      "id": "external-provider-test",
+      "name": "External Provider Test",
+      "type": "movie",
+      "items": [
+        {
+          "id": "big-buck-bunny-provider-test",
+          "name": "Big Buck Bunny - External Provider Test",
+          "description": "Blender Foundation open movie (CC BY 3.0). Also tests the optional local /resolve adapter.",
+          "torrent": "magnet:?xt=urn:btih:dd8255ecdc7ca55fb0bbf81323d87062db1f6d1c&dn=Big+Buck+Bunny&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fbig-buck-bunny.torrent",
+          "streams": [
+            {
+              "url": "https://webtorrent.io/torrents/Big%20Buck%20Bunny/Big%20Buck%20Bunny.mp4",
+              "fileName": "Big Buck Bunny.mp4",
+              "size": 276134947,
+              "width": 1280,
+              "height": 720,
+              "format": "H.264 MP4"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "static",
+      "enabled": false,
+      "id": "my-static-catalog",
+      "name": "My static catalog",
+      "type": "movie",
+      "items": [
+        {
+          "id": "example-item",
+          "name": "Example item",
+          "poster": "https://example.com/poster.jpg",
+          "description": "Replace this example with an authorized source.",
+          "torrent": "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567",
+          "streams": [
+            {
+              "url": "https://example.com/video-1080p.mp4",
+              "fileName": "video-1080p.mp4",
+              "size": 1000000000,
+              "width": 1920,
+              "height": 1080,
+              "format": "H.264 MP4"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "json",
+      "enabled": false,
+      "id": "my-json-api",
+      "name": "My JSON API",
+      "type": "movie",
+      "catalogUrl": "https://api.example.com/videos?offset={skip}&q={search}&limit={limit}",
+      "itemUrl": "https://api.example.com/videos/{id}",
+      "itemsPath": "data.results",
+      "itemPath": "data",
+      "mapping": {
+        "id": "uuid",
+        "name": "title",
+        "poster": "images.poster",
+        "background": "images.background",
+        "description": "summary",
+        "releaseInfo": "year",
+        "genres": "genres",
+        "torrent": "playback.torrent",
+        "streams": "playback.http",
+        "streamUrl": "url",
+        "streamFileName": "fileName",
+        "streamSize": "bytes",
+        "streamWidth": "width",
+        "streamHeight": "height",
+        "streamFormat": "format"
+      },
+      "headersFromEnv": {
+        "Authorization": "MY_JSON_API_AUTHORIZATION"
+      }
+    }
+  ]
+}

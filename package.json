@@ -1,0 +1,59 @@
+{
+  "name": "tribler-stremio-bridge",
+  "version": "1.3.0",
+  "private": true,
+  "description": "Local Stremio addon that streams torrents through Tribler's REST API",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "overrides": {
+    "path-to-regexp": "0.1.13",
+    "qs": "6.16.0",
+    "tmp": "0.2.7"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "provider:test": "tsx src/examples/test-stream-provider.ts",
+    "stremio-addon:test": "tsx src/examples/test-stremio-addon.ts",
+    "benchmark:tribler-buffer": "node scripts/benchmark-tribler-buffer.mjs",
+    "benchmark:tribler-swarm": "node scripts/benchmark-tribler-swarm.mjs",
+    "privacy:tracker-observation": "tsx scripts/privacy-tracker-observation.mjs",
+    "privacy:runtime": "tsx scripts/privacy-runtime-tribler-playback.ts",
+    "diagnose:episodic-streams": "tsx scripts/diagnose-episodic-streams.ts",
+    "evaluate:stremio-providers": "tsx scripts/evaluate-stremio-providers.ts",
+    "evaluate:kodi-sources": "tsx scripts/evaluate-kodi-sources.ts",
+    "compare:evaluations": "tsx scripts/compare-evaluations.ts",
+    "qa:soak": "tsx scripts/stress-soak.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "security:repo": "tsx scripts/check-repository-safety.ts --all",
+    "test:security": "vitest run tests/security",
+    "test": "vitest run --exclude \"tests/integration/**\" --exclude \"tests/acceptance/**\" --exclude \"tests/system/**\"",
+    "test:integration": "vitest run tests/integration",
+    "test:acceptance": "vitest run tests/acceptance",
+    "test:system": "vitest run tests/system",
+    "test:all": "vitest run --exclude \"tests/acceptance/**\" --exclude \"tests/system/**\"",
+    "coverage": "vitest run --coverage --coverage.provider=v8 --coverage.include=src/** --coverage.exclude=src/**/*.d.ts --coverage.exclude=src/examples/** --coverage.reporter=text-summary"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "express": "^4.21.2",
+    "stremio-addon-sdk": "^1.6.10"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.35.0",
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.18.1",
+    "@types/supertest": "^6.0.3",
+    "@vitest/coverage-v8": "^4.1.11",
+    "eslint": "^9.35.0",
+    "supertest": "^7.1.4",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.42.0",
+    "vitest": "^4.1.11"
+  }
+}

@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.11"
+
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      - name: Check repository safety
+        run: npm run security:repo
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run Node.js tests
+        run: npm run test:all
+
+      - name: Measure Node.js coverage
+        run: npm run coverage
+
+      - name: Run system acceptance tests
+        run: npm run test:acceptance
+
+      - name: Run process-level system tests
+        run: npm run test:system
+
+      - name: Build
+        run: npm run build
+
+      - name: Audit all Node.js dependencies
+        run: npm audit
+
+      - name: Audit production Node.js dependencies
+        run: npm audit --omit=dev
+
+      - name: Install Python development tools
+        working-directory: python-adapter-host
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Run Python adapter tests with coverage
+        working-directory: python-adapter-host
+        run: |
+          python -m coverage run --branch -m unittest discover -s tests -v
+          python -m coverage report --include=adapter_host/*
+
+  windows-quality:
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Set up Python
+        id: setup_python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.11"
+
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      - name: Type-check and build
+        run: |
+          npm run typecheck
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build
+
+      - name: Run critical Node tests and acceptance
+        run: |
+          npm run test:all
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:acceptance
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run test:system
+
+      - name: Measure Node.js coverage
+        run: npm run coverage
+
+      - name: Install Python development tools
+        id: python_tools
+        if: >-
+          ${{ (success() || failure()) && !cancelled() &&
+              steps.checkout.outcome == 'success' &&
+              steps.setup_python.outcome == 'success' }}
+        working-directory: python-adapter-host
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Run Python adapter tests with coverage
+        if: >-
+          ${{ (success() || failure()) && !cancelled() &&
+              steps.checkout.outcome == 'success' &&
+              steps.setup_python.outcome == 'success' &&
+              steps.python_tools.outcome == 'success' }}
+        working-directory: python-adapter-host
+        run: |
+          python -m coverage run --branch -m unittest discover -s tests -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m coverage report --include=adapter_host/*

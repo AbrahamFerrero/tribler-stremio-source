@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "profiles": [
+    {
+      "id": "source_pack_fixture",
+      "name": "Local source pack fixture",
+      "enabled": false,
+      "addonPath": "../python-adapter-host/tests/fixtures/fake_kodi_addon",
+      "addonId": "script.module.fixture",
+      "module": "adapter_host.kodi.adapters.source_pack",
+      "callable": "resolve",
+      "workerTimeoutSeconds": 5,
+      "adapterConfig": {
+        "sourcePackage": "fixture_sources",
+        "sourceFolders": ["en"],
+        "sourceIds": ["fixture_sources.en.01_legacy"],
+        "maxProviderModules": 64,
+        "maxProviderWorkers": 8,
+        "aliasesFormat": "list"
+      }
+    }
+  ]
+}

@@ -1,0 +1,426 @@
+{
+  "version": 1,
+  "id": "synthetic-evaluation-v1",
+  "cases": [
+    {
+      "id": "movie-mainstream-01",
+      "mediaClass": "movie",
+      "cohort": "mainstream",
+      "item": {
+        "type": "movie",
+        "videoId": "synthetic:movie-mainstream-01",
+        "kind": "movie",
+        "title": "Synthetic movie-mainstream-01",
+        "year": 2021,
+        "externalIds": {
+          "synthetic": "synthetic:movie-mainstream-01"
+        }
+      }
+    },
+    {
+      "id": "movie-mainstream-02",
+      "mediaClass": "movie",
+      "cohort": "mainstream",
+      "item": {
+        "type": "movie",
+        "videoId": "synthetic:movie-mainstream-02",
+        "kind": "movie",
+        "title": "Synthetic movie-mainstream-02",
+        "year": 2022,
+        "externalIds": {
+          "synthetic": "synthetic:movie-mainstream-02"
+        }
+      }
+    },
+    {
+      "id": "movie-mainstream-03",
+      "mediaClass": "movie",
+      "cohort": "mainstream",
+      "item": {
+        "type": "movie",
+        "videoId": "synthetic:movie-mainstream-03",
+        "kind": "movie",
+        "title": "Synthetic movie-mainstream-03",
+        "year": 2023,
+        "externalIds": {
+          "synthetic": "synthetic:movie-mainstream-03"
+        }
+      }
+    },
+    {
+      "id": "movie-mainstream-04",
+      "mediaClass": "movie",
+      "cohort": "mainstream",
+      "item": {
+        "type": "movie",
+        "videoId": "synthetic:movie-mainstream-04",
+        "kind": "movie",
+        "title": "Synthetic movie-mainstream-04",
+        "year": 2024,
+        "externalIds": {
+          "synthetic": "synthetic:movie-mainstream-04"
+        }
+      }
+    },
+    {
+      "id": "movie-long-tail-01",
+      "mediaClass": "movie",
+      "cohort": "long-tail",
+      "item": {
+        "type": "movie",
+        "videoId": "synthetic:movie-long-tail-01",
+        "kind": "movie",
+        "title": "Synthetic movie-long-tail-01",
+        "year": 2021,
+        "externalIds": {
+          "synthetic": "synthetic:movie-long-tail-01"
+        }
+      }
+    },
+    {
+      "id": "movie-long-tail-02",
+      "mediaClass": "movie",
+      "cohort": "long-tail",
+      "item": {
+        "type": "movie",
+        "videoId": "synthetic:movie-long-tail-02",
+        "kind": "movie",
+        "title": "Synthetic movie-long-tail-02",
+        "year": 2022,
+        "externalIds": {
+          "synthetic": "synthetic:movie-long-tail-02"
+        }
+      }
+    },
+    {
+      "id": "movie-long-tail-03",
+      "mediaClass": "movie",
+      "cohort": "long-tail",
+      "item": {
+        "type": "movie",
+        "videoId": "synthetic:movie-long-tail-03",
+        "kind": "movie",
+        "title": "Synthetic movie-long-tail-03",
+        "year": 2023,
+        "externalIds": {
+          "synthetic": "synthetic:movie-long-tail-03"
+        }
+      }
+    },
+    {
+      "id": "movie-long-tail-04",
+      "mediaClass": "movie",
+      "cohort": "long-tail",
+      "item": {
+        "type": "movie",
+        "videoId": "synthetic:movie-long-tail-04",
+        "kind": "movie",
+        "title": "Synthetic movie-long-tail-04",
+        "year": 2024,
+        "externalIds": {
+          "synthetic": "synthetic:movie-long-tail-04"
+        }
+      }
+    },
+    {
+      "id": "series-mainstream-01",
+      "mediaClass": "series",
+      "cohort": "mainstream",
+      "item": {
+        "type": "series",
+        "videoId": "synthetic:series-mainstream-01:1:2",
+        "kind": "episode",
+        "title": "Synthetic series-mainstream-01",
+        "year": 2021,
+        "externalIds": {
+          "synthetic": "synthetic:series-mainstream-01"
+        },
+        "seriesTitle": "Synthetic series series-mainstream-01",
+        "season": 1,
+        "episode": 2
+      }
+    },
+    {
+      "id": "series-mainstream-02",
+      "mediaClass": "series",
+      "cohort": "mainstream",
+      "item": {
+        "type": "series",
+        "videoId": "synthetic:series-mainstream-02:1:2",
+        "kind": "episode",
+        "title": "Synthetic series-mainstream-02",
+        "year": 2022,
+        "externalIds": {
+          "synthetic": "synthetic:series-mainstream-02"
+        },
+        "seriesTitle": "Synthetic series series-mainstream-02",
+        "season": 1,
+        "episode": 2
+      }
+    },
+    {
+      "id": "series-mainstream-03",
+      "mediaClass": "series",
+      "cohort": "mainstream",
+      "item": {
+        "type": "series",
+        "videoId": "synthetic:series-mainstream-03:1:2",
+        "kind": "episode",
+        "title": "Synthetic series-mainstream-03",
+        "year": 2023,
+        "externalIds": {
+          "synthetic": "synthetic:series-mainstream-03"
+        },
+        "seriesTitle": "Synthetic series series-mainstream-03",
+        "season": 1,
+        "episode": 2
+      }
+    },
+    {
+      "id": "series-mainstream-04",
+      "mediaClass": "series",
+      "cohort": "mainstream",
+      "item": {
+        "type": "series",
+        "videoId": "synthetic:series-mainstream-04:1:2",
+        "kind": "episode",
+        "title": "Synthetic series-mainstream-04",
+        "year": 2024,
+        "externalIds": {
+          "synthetic": "synthetic:series-mainstream-04"
+        },
+        "seriesTitle": "Synthetic series series-mainstream-04",
+        "season": 1,
+        "episode": 2
+      }
+    },
+    {
+      "id": "series-long-tail-01",
+      "mediaClass": "series",
+      "cohort": "long-tail",
+      "item": {
+        "type": "series",
+        "videoId": "synthetic:series-long-tail-01:1:2",
+        "kind": "episode",
+        "title": "Synthetic series-long-tail-01",
+        "year": 2021,
+        "externalIds": {
+          "synthetic": "synthetic:series-long-tail-01"
+        },
+        "seriesTitle": "Synthetic series series-long-tail-01",
+        "season": 1,
+        "episode": 2
+      }
+    },
+    {
+      "id": "series-long-tail-02",
+      "mediaClass": "series",
+      "cohort": "long-tail",
+      "item": {
+        "type": "series",
+        "videoId": "synthetic:series-long-tail-02:1:2",
+        "kind": "episode",
+        "title": "Synthetic series-long-tail-02",
+        "year": 2022,
+        "externalIds": {
+          "synthetic": "synthetic:series-long-tail-02"
+        },
+        "seriesTitle": "Synthetic series series-long-tail-02",
+        "season": 1,
+        "episode": 2
+      }
+    },
+    {
+      "id": "series-long-tail-03",
+      "mediaClass": "series",
+      "cohort": "long-tail",
+      "item": {
+        "type": "series",
+        "videoId": "synthetic:series-long-tail-03:1:2",
+        "kind": "episode",
+        "title": "Synthetic series-long-tail-03",
+        "year": 2023,
+        "externalIds": {
+          "synthetic": "synthetic:series-long-tail-03"
+        },
+        "seriesTitle": "Synthetic series series-long-tail-03",
+        "season": 1,
+        "episode": 2
+      }
+    },
+    {
+      "id": "series-long-tail-04",
+      "mediaClass": "series",
+      "cohort": "long-tail",
+      "item": {
+        "type": "series",
+        "videoId": "synthetic:series-long-tail-04:1:2",
+        "kind": "episode",
+        "title": "Synthetic series-long-tail-04",
+        "year": 2024,
+        "externalIds": {
+          "synthetic": "synthetic:series-long-tail-04"
+        },
+        "seriesTitle": "Synthetic series series-long-tail-04",
+        "season": 1,
+        "episode": 2
+      }
+    },
+    {
+      "id": "anime-mainstream-01",
+      "mediaClass": "anime",
+      "cohort": "mainstream",
+      "item": {
+        "type": "movie",
+        "videoId": "synthetic:anime-mainstream-01",
+        "kind": "movie",
+        "title": "Synthetic anime-mainstream-01",
+        "year": 2021,
+        "externalIds": {
+          "synthetic": "synthetic:anime-mainstream-01"
+        },
+        "classifications": [
+          "anime"
+        ]
+      }
+    },
+    {
+      "id": "anime-mainstream-02",
+      "mediaClass": "anime",
+      "cohort": "mainstream",
+      "item": {
+        "type": "movie",
+        "videoId": "synthetic:anime-mainstream-02",
+        "kind": "movie",
+        "title": "Synthetic anime-mainstream-02",
+        "year": 2022,
+        "externalIds": {
+          "synthetic": "synthetic:anime-mainstream-02"
+        },
+        "classifications": [
+          "anime"
+        ]
+      }
+    },
+    {
+      "id": "anime-mainstream-03",
+      "mediaClass": "anime",
+      "cohort": "mainstream",
+      "item": {
+        "type": "series",
+        "videoId": "synthetic:anime-mainstream-03:1:2",
+        "kind": "episode",
+        "title": "Synthetic anime-mainstream-03",
+        "year": 2023,
+        "externalIds": {
+          "synthetic": "synthetic:anime-mainstream-03"
+        },
+        "seriesTitle": "Synthetic series anime-mainstream-03",
+        "season": 1,
+        "episode": 2,
+        "classifications": [
+          "anime"
+        ]
+      }
+    },
+    {
+      "id": "anime-mainstream-04",
+      "mediaClass": "anime",
+      "cohort": "mainstream",
+      "item": {
+        "type": "series",
+        "videoId": "synthetic:anime-mainstream-04:1:2",
+        "kind": "episode",
+        "title": "Synthetic anime-mainstream-04",
+        "year": 2024,
+        "externalIds": {
+          "synthetic": "synthetic:anime-mainstream-04"
+        },
+        "seriesTitle": "Synthetic series anime-mainstream-04",
+        "season": 1,
+        "episode": 2,
+        "classifications": [
+          "anime"
+        ]
+      }
+    },
+    {
+      "id": "anime-long-tail-01",
+      "mediaClass": "anime",
+      "cohort": "long-tail",
+      "item": {
+        "type": "movie",
+        "videoId": "synthetic:anime-long-tail-01",
+        "kind": "movie",
+        "title": "Synthetic anime-long-tail-01",
+        "year": 2021,
+        "externalIds": {
+          "synthetic": "synthetic:anime-long-tail-01"
+        },
+        "classifications": [
+          "anime"
+        ]
+      }
+    },
+    {
+      "id": "anime-long-tail-02",
+      "mediaClass": "anime",
+      "cohort": "long-tail",
+      "item": {
+        "type": "movie",
+        "videoId": "synthetic:anime-long-tail-02",
+        "kind": "movie",
+        "title": "Synthetic anime-long-tail-02",
+        "year": 2022,
+        "externalIds": {
+          "synthetic": "synthetic:anime-long-tail-02"
+        },
+        "classifications": [
+          "anime"
+        ]
+      }
+    },
+    {
+      "id": "anime-long-tail-03",
+      "mediaClass": "anime",
+      "cohort": "long-tail",
+      "item": {
+        "type": "series",
+        "videoId": "synthetic:anime-long-tail-03:1:2",
+        "kind": "episode",
+        "title": "Synthetic anime-long-tail-03",
+        "year": 2023,
+        "externalIds": {
+          "synthetic": "synthetic:anime-long-tail-03"
+        },
+        "seriesTitle": "Synthetic series anime-long-tail-03",
+        "season": 1,
+        "episode": 2,
+        "classifications": [
+          "anime"
+        ]
+      }
+    },
+    {
+      "id": "anime-long-tail-04",
+      "mediaClass": "anime",
+      "cohort": "long-tail",
+      "item": {
+        "type": "series",
+        "videoId": "synthetic:anime-long-tail-04:1:2",
+        "kind": "episode",
+        "title": "Synthetic anime-long-tail-04",
+        "year": 2024,
+        "externalIds": {
+          "synthetic": "synthetic:anime-long-tail-04"
+        },
+        "seriesTitle": "Synthetic series anime-long-tail-04",
+        "season": 1,
+        "episode": 2,
+        "classifications": [
+          "anime"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "profiles": [
+    {
+      "id": "profile_a",
+      "name": "Profile A",
+      "enabled": false,
+      "addonPath": "/absolute/path/to/local-addon-a",
+      "addonId": "script.module.local",
+      "module": "adapter_host.kodi.adapters.p2p_metadata",
+      "callable": "resolve",
+      "settingsFile": "/absolute/path/to/private-settings-a.json",
+      "profilePath": "/absolute/path/to/local-profile-a",
+      "workerTimeoutSeconds": 5,
+      "adapterConfig": {
+        "sourceModule": "local_source_a",
+        "sourceId": "source_a",
+        "sourceEnabledSetting": "provider.source_a",
+        "sourceResponseMode": "none"
+      }
+    },
+    {
+      "id": "profile_b",
+      "name": "Profile B",
+      "enabled": false,
+      "addonPath": "/absolute/path/to/local-addon-b",
+      "addonId": "script.module.local",
+      "module": "adapter_host.kodi.adapters.p2p_metadata",
+      "callable": "resolve",
+      "settingsFile": null,
+      "profilePath": null,
+      "workerTimeoutSeconds": 5,
+      "adapterConfig": {
+        "sourceModule": "local_source_b",
+        "sourceId": "source_b",
+        "sourceEnabledSetting": "provider.source_b",
+        "sourceResponseMode": "none"
+      }
+    }
+  ]
+}

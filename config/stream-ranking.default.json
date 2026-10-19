@@ -1,0 +1,13 @@
+{
+  "direct": {
+    "health": { "verified": 120, "reachable": 85, "unknown": -12, "timeout": -30, "unreachable": -45 },
+    "latencyMs": [
+      { "max": 200, "score": 25 },
+      { "max": 1000, "score": 10 },
+      { "max": 2500, "score": 3 },
+      { "score": -8 }
+    ]
+  },
+  "torrent": { "seedScorePerDoubling": 20, "maxSeedScore": 150, "zeroSeeds": -60, "unknownSeeds": -12 },
+  "quality": { "2160p": 65, "1440p": 52, "1080p": 42, "720p": 25, "480p": 12, "unknown": 0 }
+}

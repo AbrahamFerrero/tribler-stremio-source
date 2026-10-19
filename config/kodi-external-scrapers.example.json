@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "profiles": [
+    {
+      "id": "package_a",
+      "name": "Local package A",
+      "enabled": false,
+      "addonPath": "../python-adapter-host/tests/fixtures/fake_kodi_addon",
+      "addonId": "script.module.fake",
+      "module": "adapter_host.kodi.adapters.external_scraper_package",
+      "callable": "resolve",
+      "workerTimeoutSeconds": 5,
+      "adapterConfig": {
+        "packageModule": "scraper_package_a",
+        "folders": [
+          "torrents"
+        ]
+      }
+    },
+    {
+      "id": "package_b",
+      "name": "Local package B",
+      "enabled": false,
+      "addonPath": "../python-adapter-host/tests/fixtures/fake_kodi_addon",
+      "addonId": "script.module.fake",
+      "module": "adapter_host.kodi.adapters.external_scraper_package",
+      "callable": "resolve",
+      "workerTimeoutSeconds": 5,
+      "adapterConfig": {
+        "packageModule": "scraper_package_b",
+        "folders": [
+          "torrents"
+        ]
+      }
+    }
+  ]
+}
