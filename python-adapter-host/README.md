@@ -1,9 +1,9 @@
 # Python Adapter Host
 
-Project-authored adapter and fixture code is prepared for the first public source
-release under [PolyForm Noncommercial 1.0.0](../LICENSE), with the
+Project-authored adapter and fixture code is available in v1.3.0 (2026-10-20)
+under [PolyForm Noncommercial 1.0.0](../LICENSE), with the
 [Required Notice](../NOTICE) and [contribution guidance](../CONTRIBUTING.md).
-Publication remains pending. Externally installed modules/addons and media retain
+Externally installed modules/addons and media retain
 their own licenses and attribution; the project license does not relicense them.
 
 An optional local service that translates Kodi-compatible resolvers into normalized sources for the bridge. It listens only on `127.0.0.1`, runs each resolution in a fresh worker, and does not know the Tribler API.

@@ -2,7 +2,7 @@
 
 ## v1.3 status and deferred decisions
 
-v1.3 is in feature freeze. This file separates current debt from delivered mechanisms. It does not authorize another QA campaign. See [v1.3 notes](docs/releases/v1.3.0.md) for the candidate's supported scope.
+v1.3.0 is the public source release dated 2026-10-20. This file separates current debt from delivered mechanisms. It does not authorize another QA campaign. See [v1.3 notes](docs/releases/v1.3.0.md) for its supported scope.
 
 Delivered mechanisms (retain their documented limits):
 
@@ -18,7 +18,7 @@ Current deferred debt and accepted limits:
 - **R-020 open:** broader response metadata, session/rendition fields, legacy routes, logs and artifacts need separate design/evidence. Bounded residual risk is provisionally accepted for v1.3; existing minimization does not close it.
 - **Advanced localhost hardening deferred:** current Origin/native policies do not authenticate local executables or contain same-user attackers. The implemented controls have recorded Desktop validation and their residual risks are accepted for v1.3 localhost-only use. Any stronger design requires separate review and client compatibility evidence.
 - **Development dependency risk:** temporary local-integration acceptance of the embedded vulnerable source-map code remains open; retire only after verifying a corrected artifact or a separately reviewed tooling change. See [dependency review](docs/dependency-security-review.md).
-- **Publication boundary:** private development history contains private material and must never be merged directly into a public main branch or exposed publicly. The independent public source candidate is an audited neutral snapshot with a separate root history and an explicitly reviewed file manifest; it does not inherit that private history. Publication remains pending explicit approval of the exact candidate.
+- **Publication boundary:** private development history contains private material and must never be merged directly into a public main branch or exposed publicly. The public source repository starts from the approved, audited neutral snapshot with a separate root history and an explicitly reviewed file manifest; it does not inherit that private history.
 
 Additional mutation testing, fuzzing, soak, stress and extensive campaigns are deferred enhancements, not automatic v1.3 blockers. Cache-first probing is delivered; a causal real-world speedup has not been isolated by A/B evidence and is not promised.
 

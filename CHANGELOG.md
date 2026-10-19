@@ -1,8 +1,8 @@
 ﻿# Changelog
 
-## [1.3.0] - Unreleased
+## [1.3.0] - 2026-10-20
 
-Documentation describes the local v1.3 candidate; no publication date, tag or CI success is asserted. See [v1.3.0 notes](docs/releases/v1.3.0.md) for compatibility, evidence and accepted limits.
+Public source release v1.3.0. Linux and Windows hosted CI passed on base commit `98211a9d2e33c333193983bb9525b2a92dd364c2`; see the release notes for the exact run and its scope. See [v1.3.0 notes](docs/releases/v1.3.0.md) for compatibility, evidence and accepted limits.
 
 ### Added
 
@@ -12,7 +12,7 @@ Documentation describes the local v1.3 candidate; no publication date, tag or CI
 
 ### Changed
 
-- The first public v1.3 source release is prepared under [PolyForm Noncommercial 1.0.0](LICENSE), with a [Required Notice](NOTICE) and [contribution guidance](CONTRIBUTING.md). Earlier private snapshots carried MIT notices; their history and third-party rights are preserved. Publication remains pending.
+- The public v1.3 source release is available under [PolyForm Noncommercial 1.0.0](LICENSE), with a [Required Notice](NOTICE) and [contribution guidance](CONTRIBUTING.md). Earlier private snapshots carried MIT notices; their history and third-party rights are preserved.
 - Direct probing recovers cached results before allocating fresh network slots and reapplies current qualification and URL policy.
 - HLS descendants share bounded session inactivity authority; child replacement, expiry and eviction revoke obsolete capabilities.
 - Recipient-scoped source headers, conditional representation binding, provider credential redirect boundaries and HLS text minimization retain explicit limits.

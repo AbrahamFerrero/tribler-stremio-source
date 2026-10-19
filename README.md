@@ -1,8 +1,8 @@
 # Tribler Stremio Bridge
 
-Documentation for the **v1.3.0 candidate (unreleased)**. See the [release notes](docs/releases/v1.3.0.md) and [changelog](CHANGELOG.md). Package metadata is aligned to v1.3.0; publication remains pending. v1.3 is in feature freeze.
+Documentation for **v1.3.0 — 2026-10-20**. See the [release notes](docs/releases/v1.3.0.md) and [changelog](CHANGELOG.md).
 
-This personal, independent project explores neutral multimedia engineering for experimentation and household use. It is a professional portfolio project with engineering direction and QA by Abraham Ferrero, developed with AI assistance. It is not officially affiliated with Stremio or Tribler. The first public source release is being prepared under [PolyForm Noncommercial 1.0.0](LICENSE); publication remains pending.
+This personal, independent project explores neutral multimedia engineering for experimentation and household use. It is a professional portfolio project with engineering direction and QA by Abraham Ferrero, developed with AI assistance. It is not officially affiliated with Stremio or Tribler. The public source release is available under [PolyForm Noncommercial 1.0.0](LICENSE).
 
 A local Stremio bridge that resolves video sources and plays them through direct HTTP/HTTPS or BitTorrent via Tribler. The bridge does not implement a BitTorrent client: Tribler is the only BitTorrent backend and both services remain on the same computer.
 
@@ -140,7 +140,7 @@ The bundled [ranking policy](config/stream-ranking.default.json) scores direct p
 
 To tune the ordering without editing TypeScript, copy the policy to `config/stream-ranking.local.json`, edit its numeric weights, and set `STREAM_RANKING_CONFIG_FILE=./config/stream-ranking.local.json` in `.env`. The file is local and ignored by Git. The bridge rejects missing, malformed, or out-of-range configured policies at startup. `DIRECT_HTTP_PROBE_ENABLED=true` enables verification; with the probe disabled, direct sources have unknown health and cannot be labelled verified. The probe uses the existing hardened outbound transport.
 
-Cache-first probing is integrated and covered by controlled regressions; its real-world causal benefit was not isolated by an A/B comparison, so no percentage improvement is claimed. `STREMIO_ADDON_REQUEST_TIMEOUT_MS` defaults to 5000 ms in this candidate. An 8000 ms setting is a local recommendation, not a new production default.
+Cache-first probing is integrated and covered by controlled regressions; its real-world causal benefit was not isolated by an A/B comparison, so no percentage improvement is claimed. `STREMIO_ADDON_REQUEST_TIMEOUT_MS` defaults to 5000 ms in v1.3.0. An 8000 ms setting is a local recommendation, not a new production default.
 
 An HTTPS-labelled source stays on HTTPS during playback. Direct and Tribler are separate Stremio choices; a Direct failure does not switch to Tribler.
 
@@ -184,7 +184,7 @@ BitTorrent traffic is delegated to Tribler; Node contains no direct BitTorrent c
 
 The transport minimizes source headers, restricts them to the entry origin or explicitly configured recipients, and never forwards cookies, `Authorization`, or forwarding headers. Referer is absent by default; an explicit source requirement is reduced to origin-only unless an exact value is locally authorized. HTTPS-to-HTTP propagation is blocked. The supported Windows launcher filters the Python host environment before process creation; direct/embedded entry points reject Tribler variables at startup but cannot undo interpreter inheritance. Workers apply bounded IPC, filtered environments and audit-hook filesystem restrictions. Locally installed modules remain trusted code; these controls are not an operating-system sandbox.
 
-Direct HTTPS does not hide the public client IP from the media server. Historical local runtime observations cover only their measured process/window; they do not prove anonymity against peers, trackers, DHT, PEX, DNS or an external observer, or certify this candidate.
+Direct HTTPS does not hide the public client IP from the media server. Historical local runtime observations cover only their measured process/window; they do not prove anonymity against peers, trackers, DHT, PEX, DNS or an external observer, or certify v1.3.0.
 
 `/health` distinguishes a ready bridge from a degraded configured provider and an unavailable Tribler endpoint. It returns HTTP 503 when any enabled provider is in an error state, even when Tribler and other providers remain operational. `/providers` provides the corresponding sanitized provider status.
 
@@ -248,7 +248,7 @@ See [provider quality evaluation](docs/provider-quality-evaluation.md) for the S
 
 ## License
 
-The first public v1.3 source release is prepared under the unmodified [PolyForm Noncommercial License 1.0.0](LICENSE), SPDX `PolyForm-Noncommercial-1.0.0`. Copyright © 2026 Abraham Ferrero; preserve the [Required Notice](NOTICE). When published, the source will be publicly available under these terms. This is source-available software, not OSI open source.
+The public v1.3 source release is available under the unmodified [PolyForm Noncommercial License 1.0.0](LICENSE), SPDX `PolyForm-Noncommercial-1.0.0`. Copyright © 2026 Abraham Ferrero; preserve the [Required Notice](NOTICE). The source is publicly available under these terms. This is source-available software, not OSI open source.
 
 The license permits use, modification, forks and redistribution for its permitted purposes, including noncommercial purposes. Those grants do not require separate prior permission. Follow the full license, including its notice requirements: recipients must receive its terms or official URL and the Required Notice. Uses outside its grants need separate authorization from the relevant rights holders. Abraham Ferrero reserves commercial licensing of material over which he holds the necessary rights; this does not offer rights in third-party material.
 
