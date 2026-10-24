@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from adapter_host.kodi.process_manager import KodiWorkerConfig, KodiWorkerError, KodiWorkerProcessManager, _minimal_environment
 from adapter_host.kodi.protocol import MAX_INPUT_BYTES, ProtocolError
+from tests.worker_integration import HEALTHY_WORKER_SECONDS
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "fake_kodi_addon"
@@ -24,13 +25,14 @@ def media(identifier: str = "fixture:ok") -> dict[str, object]:
     }
 
 
-def manager(timeout: float = 1.0) -> KodiWorkerProcessManager:
+def manager(timeout: float = HEALTHY_WORKER_SECONDS, *, profile_path=None) -> KodiWorkerProcessManager:
     return KodiWorkerProcessManager(KodiWorkerConfig(
         addon_path=FIXTURE,
         module_name="fake_kodi_module",
         addon_id="script.module.fake",
         settings_file=SETTINGS,
         timeout_seconds=timeout,
+        profile_path=profile_path,
     ))
 
 
@@ -180,9 +182,22 @@ class KodiWorkerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_hard_timeout_terminates_worker_without_zombie(self) -> None:
         processes = self.observe_real_processes()
-        worker = manager(0.15)
-        with self.assertRaisesRegex(KodiWorkerError, "worker_timeout"):
-            await worker.resolve(media("fixture:block"))
+        with tempfile.TemporaryDirectory() as directory:
+            profile = Path(directory)
+            worker = manager(profile_path=profile)
+            task = asyncio.create_task(worker.resolve(media("fixture:ready-block")))
+            try:
+                deadline = asyncio.get_running_loop().time() + HEALTHY_WORKER_SECONDS
+                while not (profile / "ready").exists() and not task.done():
+                    self.assertLess(asyncio.get_running_loop().time(), deadline, "blocked fixture never initialized")
+                    await asyncio.sleep(0.005)
+                self.assertTrue((profile / "ready").exists(), "timeout occurred before the blocked fixture initialized")
+                with self.assertRaisesRegex(KodiWorkerError, "^worker_timeout$"):
+                    await task
+            finally:
+                if not task.done():
+                    task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
         self.assertEqual(worker.active_count, 0)
         self.assertEqual(len(worker.completed_pids), 1)
         self.assertEqual(len(processes), 1)

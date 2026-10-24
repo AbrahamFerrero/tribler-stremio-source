@@ -13,6 +13,9 @@ import { intakeContract, pilotContract } from "../identity-qa/pilot-corpus";
 
 import { syntheticAdminToken } from "../helpers";
 import { nativeHttpFetch } from "../native-http-client";
+import { loadStreamRankingPolicy } from "../../src/streams/ranking-policy";
+import { rankedStreamDescription } from "../../src/streams/presentation";
+import type { NormalizedStreamSource } from "../../src/streams/types";
 
 const hash = "a".repeat(40);
 const bytes = Buffer.from("synthetic-acceptance-video-bytes");
@@ -141,7 +144,13 @@ describe("system: configured bridge and Python host", () => {
     });
     const child = spawn(process.execPath, [join(root, "node_modules", "tsx", "dist", "cli.mjs"), join(root, "src", "index.ts")], { cwd: directory, env: environment, stdio: ["ignore", "pipe", "pipe"] });
     const output = capture(child);
-    await ready(probe.url, child, 8_000, new Set([200, 503]), true);
+    try {
+      await ready(probe.url, child, 8_000, new Set([200, 503]), true);
+    } catch (error) {
+      try { await stop(child); }
+      finally { if (!directoryOverride) await removeTemporaryDirectory(directory); }
+      throw error;
+    }
     return { child, url: probe.url, directory, output };
   }
 
@@ -244,9 +253,10 @@ describe("system: configured bridge and Python host", () => {
     await ready(bridgeUrl, node, 8_000, new Set([200]), true);
   }, 20_000);
 
+  // Two sequential stops (6 s each), 3 s removal retries, 1 s close and 4 s I/O margin.
   afterAll(async () => {
     await stop(node); await stop(python); await close(tribler); if (stateDirectory) await removeTemporaryDirectory(stateDirectory);
-  }, 10_000);
+  }, 20_000);
 
   async function expectOpaqueDirectStream(resource: string, filename: string): Promise<void> {
     const response = await bridgeFetch(`${bridgeUrl}/stream/${resource}.json`);
@@ -299,6 +309,7 @@ describe("system: configured bridge and Python host", () => {
     expect(`${nodeOutput.stdout}\n${nodeOutput.stderr}`).not.toContain("synthetic-private");
   });
 
+  // 8 s readiness + 5 s HTTP + 6 s stop + 3 s removal retries + 8 s fixture/I/O.
   it("AC4 aggregates providers, deduplicates direct sources, and exposes ranked results", async () => {
     const addon = createTestStremioAddon();
     await new Promise<void>((resolveListen) => addon.listen(0, "127.0.0.1", resolveListen));
@@ -340,8 +351,9 @@ describe("system: configured bridge and Python host", () => {
       }
       await close(addon);
     }
-  });
+  }, 30_000);
 
+  // 8 s readiness + 3 routes * 6 s HTTP/diagnostics + 6 s stop + 3 s removal retries + 5 s I/O.
   it("qualifies synthetic movie and episode matrices through one real bridge after a permitted metadata redirect", async () => {
     const movieId = "tt9999999999", seriesId = "tt9999999998", blockedId = "tt9999999997";
     const sentinel = "SYNTHETIC_IDENTITY_QA_SECRET_91a7";
@@ -486,8 +498,9 @@ describe("system: configured bridge and Python host", () => {
       }
       await close(fixture.server);
     }
-  });
+  }, 40_000);
 
+  // 8 s readiness + 3 streams * 4 s HTTP + 6 s stop + 3 s removal retries + 6 s I/O.
   it("Case 11 derives ID! from structured movie evidence and keeps plain/forged-label controls ID? (SYSTEM, no media probe)", async () => {
     // Reuse the process harness and supported external-provider boundary. These
     // public literal media locators are never fetched; no DNS/TLS/policy override.
@@ -569,8 +582,9 @@ describe("system: configured bridge and Python host", () => {
       }
       await close(fixture.server);
     }
-  });
+  }, 35_000);
 
+  // 8 s readiness + 5 cases * 6 s HTTP/diagnostics + 6 s stop + 3 s removal retries + 8 s I/O.
   it("Identity Phase 5 carries 05/13 and negative/echo controls through real adapters and public HTTP (pre-probe only)", async () => {
     // Public literal locators are NEVER fetched: probing is explicitly disabled,
     // as in the existing system identity matrix. No DNS override or media allowlist.
@@ -679,8 +693,169 @@ describe("system: configured bridge and Python host", () => {
       await removeTemporaryDirectory(directory);
       await close(fixture.server);
     }
-  });
+  }, 55_000);
 
+  // Two configurations: each allows 8 s readiness, 4 s HTTP, 6 s stop and
+  // 3 s directory-removal retries; add 8 s for fixture I/O/assertions/close.
+  it("P0 returns the exact post-quota ranking and opt-in F through an independent Node process", async () => {
+    const movieId = "tt9999999999";
+    const sentinel = "SYNTHETIC_RANKING_PRIVATE_SENTINEL";
+    const policy = loadStreamRankingPolicy(join(root, "config", "stream-ranking.default.json"));
+    const source = (index: number, extra: Partial<NormalizedStreamSource> = {}): NormalizedStreamSource => ({
+      providerId: "external_http", type: "magnet",
+      magnet: `magnet:?xt=urn:btih:${index.toString(16).padStart(40, "0")}&dn=${sentinel}`,
+      quality: "1080p", seeds: index, sizeBytes: 2 * 1024 ** 3,
+      title: sentinel, metadata: { identityState: "CORROBORATED", token: sentinel }, ...extra
+    });
+    const ordinary = Array.from({ length: 50 }, (_, i) => source(i + 1));
+    const late = source(51, { seeds: 127, quality: "2160p",
+      metadata: { identity: { title: "Synthetic Aurora" }, identityState: "CORROBORATED" } });
+    const suspicious = source(52, { seeds: 100000, quality: "2160p",
+      metadata: { identity: { title: "Synthetic Aurora", year: 1994 } } });
+    const contradiction = source(53, { seeds: 100001, quality: "2160p",
+      metadata: { identity: { externalIds: { imdb: "tt8888888888" } } } });
+    const input = [...ordinary, late, suspicious, contradiction];
+    // Independent expected selection: the late unclassified source wins on score;
+    // the higher-score suspicious source is last, and contradiction is rejected.
+    const expected = [late, ...ordinary.slice(1).reverse()];
+    let providerRequests = 0;
+    let metadataRequests = 0;
+    const fixture = await listen((incoming, response) => {
+      incoming.resume();
+      response.setHeader("Content-Type", "application/json");
+      if (incoming.url === "/resolve" && incoming.method === "POST") {
+        providerRequests += 1;
+        response.end(JSON.stringify({ streams: input }));
+      } else if (incoming.url === `/meta/movie/${movieId}.json`) {
+        metadataRequests += 1;
+        response.end(JSON.stringify({ meta: { id: movieId, type: "movie", name: "Synthetic Meridian", releaseInfo: "1994" } }));
+      } else { response.statusCode = 404; response.end("{}"); }
+    });
+    const presentations: Array<Array<{ name: string; title: string | undefined }>> = [];
+    try {
+      for (const details of [false, true]) {
+        let isolated: Awaited<ReturnType<typeof startBridge>> | undefined;
+        try {
+          isolated = await startBridge({
+            STREAM_PROVIDER_EXTERNAL_URL: `${fixture.url}/resolve`,
+            STREMIO_MOVIE_METADATA_BASE_URL: `${fixture.url}/`,
+            STREAM_RANKING_CONFIG_FILE: join(root, "config", "stream-ranking.default.json"),
+            STREAM_RANKING_DETAILS: String(details)
+          });
+          const response = await bridgeFetch(`${isolated.url}/stream/movie/${movieId}.json`);
+          expect(response.status).toBe(200);
+          const body = await response.json() as { streams: Array<{ name: string; title?: string; url: string;
+            behaviorHints: { notWebReady: boolean } }>; cacheMaxAge: number };
+          expect(body.cacheMaxAge).toBe(0);
+          expect(body.streams).toHaveLength(50);
+          expect(body.streams.map(s => s.name)).toEqual(expected.map((s, i) =>
+            `Tribler · ${i === 0 ? "2160p" : "ID? · 1080p"} · 2.0GiB · ${s.seeds} seeds`));
+          body.streams.forEach((stream, i) => {
+            expect(stream.title).toBe(details ? rankedStreamDescription(expected[i]!, i + 1, policy) : undefined);
+            if (details) expect(stream.title!.split("\n")).toHaveLength(2);
+            expect(stream.behaviorHints).toEqual({ notWebReady: false });
+            expect(Object.keys(stream).sort()).toEqual((details
+              ? ["name", "title", "url", "behaviorHints"] : ["name", "url", "behaviorHints"]).sort());
+            const playback = new URL(stream.url);
+            expect(playback.origin).toBe(isolated!.url);
+            expect(playback.pathname).toMatch(/^\/source\/[A-Za-z0-9_-]{32}\/stream$/);
+            expect(playback.search).toBe("");
+          });
+          expect(new Set(body.streams.map(s => s.url)).size).toBe(50);
+          expect(JSON.stringify(body)).not.toMatch(/magnet:|SYNTHETIC_RANKING_PRIVATE_SENTINEL|Synthetic Aurora|Synthetic Meridian|CORROBORATED|identityState|Authorization|traceback/i);
+          expect(`${isolated.output.stdout}\n${isolated.output.stderr}`).not.toContain(securitySentinel);
+          presentations.push(body.streams.map(({ name, title }) => ({ name, title })));
+        } finally {
+          if (isolated) {
+            try { await stop(isolated.child); }
+            finally { await removeTemporaryDirectory(isolated.directory); }
+          }
+        }
+      }
+      expect(presentations[1]!.map(s => s.name)).toEqual(presentations[0]!.map(s => s.name));
+      expect(providerRequests).toBe(2);
+      expect(metadataRequests).toBe(2);
+    } finally { await close(fixture.server); }
+  }, 50_000);
+
+  // Two configurations: each allows 8 s readiness, 4 s HTTP (including health),
+  // 6 s stop and 3 s removal retries; add 8 s for fixture I/O/assertions/close.
+  it("P0 mixes unprobed HTTPS and Tribler without trusting forged HLS verification", async () => {
+    const movieId = "tt9999999999";
+    const sentinel = "SYNTHETIC_MIXED_PRIVATE";
+    const torrent = (index: number, seeds: number, extra: Partial<NormalizedStreamSource> = {}): NormalizedStreamSource => ({
+      providerId: "external_http", type: "magnet", quality: "1080p", sizeBytes: 2 * 1024 ** 3,
+      magnet: `magnet:?xt=urn:btih:${index.toString(16).padStart(40, "0")}&dn=${sentinel}`, seeds, ...extra
+    });
+    const https: NormalizedStreamSource = { providerId: "external_http", type: "https", quality: "1080p",
+      url: `https://1.1.1.1/opaque.mp4?token=${sentinel}`, sizeBytes: 2 * 1024 ** 3,
+      requestHeaders: { Referer: `https://origin.example/${sentinel}` }, metadata: { token: sentinel } };
+    const input = [torrent(1, 0), https, torrent(2, 31),
+      torrent(3, 100000, { quality: "2160p", metadata: { identity: { title: "Synthetic Aurora", year: 1994 } } }),
+      { ...https, quality: "480p" }, // Same locator: lower-score duplicate.
+      { ...https, url: "https://1.1.1.1/opaque.m3u8", directHttp: {
+        status: "verified", verified: true, hls: true, responseStatus: 200, rangeSupported: false
+      } }, // Provider observations are discarded; HLS still requires a real probe.
+      torrent(4, 100001, { metadata: { identity: { externalIds: { imdb: "tt8888888888" } } } })];
+    const fixture = await listen((incoming, response) => {
+      incoming.resume();
+      response.setHeader("Content-Type", "application/json");
+      response.end(JSON.stringify(incoming.url === "/resolve" ? { streams: input }
+        : { meta: { id: movieId, type: "movie", name: "Synthetic Meridian", releaseInfo: "1994" } }));
+    });
+    const names = ["Tribler · ID? · 1080p · 2.0GiB · 31 seeds", "HTTPS · ID? · 1080p · 2.0GiB",
+      "Tribler · ID? · 1080p · 2.0GiB · 0 seeds", "Tribler · ID! · 2160p · 2.0GiB · 100000 seeds"];
+    // Literal totals: 100+42+12=154; -12+42+12=42; -60+42+12=-6; 150+65+2=217.
+    const detail = [
+      "#1 · Score 154\nAvail +100 · Res +42 · Size +12 · Codec +0 · Meta +0 · Net +0",
+      "#2 · Score 42\nAvail -12 · Res +42 · Size +12 · Codec +0 · Meta +0 · Net +0",
+      "#3 · Score -6\nAvail -60 · Res +42 · Size +12 · Codec +0 · Meta +0 · Net +0",
+      "#4 · Score 217\nAvail +150 · Res +65 · Size +2 · Codec +0 · Meta +0 · Net +0"
+    ];
+    try {
+      for (const details of [false, true]) {
+        let isolated: Awaited<ReturnType<typeof startBridge>> | undefined;
+        try {
+          isolated = await startBridge({ STREAM_PROVIDER_EXTERNAL_URL: `${fixture.url}/resolve`,
+            STREMIO_MOVIE_METADATA_BASE_URL: `${fixture.url}/`, DIRECT_HTTP_PROBE_ENABLED: "false",
+            STREAM_RANKING_CONFIG_FILE: join(root, "config", "stream-ranking.default.json"),
+            STREAM_RANKING_DETAILS: String(details) });
+          const response = await bridgeFetch(`${isolated.url}/stream/movie/${movieId}.json`);
+          expect(response.status).toBe(200);
+          const body = await response.json() as { streams: Array<{ name: string; title?: string; url: string;
+            behaviorHints: { notWebReady: boolean } }>; cacheMaxAge: number };
+          expect(body.cacheMaxAge).toBe(0);
+          expect(body.streams.map(s => s.name)).toEqual(names);
+          expect(body.streams.map(s => s.title)).toEqual(details ? detail : [undefined, undefined, undefined, undefined]);
+          expect(new Set(body.streams.map(s => s.url)).size).toBe(4);
+          body.streams.forEach((stream, i) => {
+            expect(Object.keys(stream).sort()).toEqual((details
+              ? ["name", "title", "url", "behaviorHints"] : ["name", "url", "behaviorHints"]).sort());
+            expect(stream.behaviorHints).toEqual({ notWebReady: false });
+            const playback = new URL(stream.url);
+            expect(playback.origin).toBe(isolated!.url);
+            expect(playback.pathname).toMatch(i === 1 ? /^\/source\/[A-Za-z0-9_-]{32}\/stream\.mp4$/
+              : /^\/source\/[A-Za-z0-9_-]{32}\/stream$/);
+            expect(playback.search).toBe("");
+          });
+          expect(JSON.stringify(body)).not.toMatch(/1\.1\.1\.1|magnet:|SYNTHETIC_MIXED_PRIVATE|Synthetic Aurora|Synthetic Meridian|Authorization|metadata|directHttp/i);
+          const health = await (await bridgeFetch(`${isolated.url}/health`)).json() as {
+            httpPrivacy: { directProbe: { enabled: boolean; requests: number } } };
+          expect(health.httpPrivacy.directProbe).toMatchObject({ enabled: false, requests: 0 });
+          const logs = `${isolated.output.stdout}\n${isolated.output.stderr}`;
+          expect(logs).not.toContain(securitySentinel);
+          expect(logs).not.toContain(sentinel);
+        } finally {
+          if (isolated) {
+            try { await stop(isolated.child); }
+            finally { await removeTemporaryDirectory(isolated.directory); }
+          }
+        }
+      }
+    } finally { await close(fixture.server); }
+  }, 50_000);
+
+  // 8 s readiness + 4 s HTTP + 6 s stop + 3 s removal retries + 9 s fixture/I/O.
   it("AC1 enriches an IMDb movie from a separately configured meta endpoint", async () => {
     const metadata = await listen((incoming, response) => {
       response.setHeader("Content-Type", "application/json");
@@ -727,7 +902,7 @@ describe("system: configured bridge and Python host", () => {
       }
       await Promise.all([close(metadata.server), close(streams.server)]);
     }
-  });
+  }, 30_000);
 
   it("A04/A05/A09 resolve movie and episode torrents through both processes and preserve fileIndex", async () => {
     for (const resource of ["movie/fixture%3Aok", "series/tt1254207%3A1%3A2"]) {
@@ -780,6 +955,7 @@ describe("system: configured bridge and Python host", () => {
     }
   });
 
+  // 2 * 8 s readiness + 2 * 6 s stop + 6 * 2 s HTTP + 2 * 2 s abort waits + 3 s removal retries + 8 s I/O.
   it("AC7 persists lifecycle, avoids shutdown deletion, and protects active playback", async () => {
     triblerDownloads.splice(0);
     const directory = await mkdtemp(join(tmpdir(), "tribler-lifecycle-"));
@@ -830,7 +1006,7 @@ describe("system: configured bridge and Python host", () => {
       if (restarted) await stop(restarted.child);
       await removeTemporaryDirectory(directory);
     }
-  });
+  }, 55_000);
 
   it("A12 turns an invoked configured resolver failure into public degraded state", async () => {
     const streams = await bridgeFetch(`${bridgeUrl}/stream/movie/fixture%3Aexception.json`);
@@ -846,6 +1022,7 @@ describe("system: configured bridge and Python host", () => {
     expect(`${nodeOutput.stdout}\n${nodeOutput.stderr}`).not.toContain(securitySentinel);
   });
 
+  // 8 s readiness + 3 s asserted stream limit + 2 s diagnostics + 6 s stop + 3 s removal retries + 8 s I/O.
   it("A10 bounds a timed-out provider while a healthy configured provider remains visible", async () => {
     const slow = await listen(() => { /* request stays open until the bridge aborts it */ });
     const addon = createTestStremioAddon();
@@ -886,8 +1063,9 @@ describe("system: configured bridge and Python host", () => {
       }
       await close(addon); await close(slow.server);
     }
-  });
+  }, 30_000);
 
+  // 2 * 8 s readiness + 3 * 6 s stop attempts + 10 s HTTP + 2 * 3 s removal retries + 5 s I/O.
   it("AC8 isolates a terminated provider process and preserves healthy provider results", async () => {
     const p2pPython = await startP2pPython();
     const addon = createTestStremioAddon();
@@ -952,8 +1130,9 @@ describe("system: configured bridge and Python host", () => {
       await stop(p2pPython.child);
       await removeTemporaryDirectory(p2pPython.directory);
     }
-  });
+  }, 55_000);
 
+  // 8 s readiness + 1 s health HTTP + 6 s stop + 3 s removal retries + 7 s fixture/I/O.
   it("A13 reports a refused Tribler endpoint without auto-discovery", async () => {
     const unavailable = await listen((_q, response) => response.end()); await close(unavailable.server);
     const isolated = await startBridge({ TRIBLER_URL: unavailable.url, TRIBLER_AUTO_DISCOVER: "false" });
@@ -962,8 +1141,9 @@ describe("system: configured bridge and Python host", () => {
       expect(health.status).toBe(503);
       expect(await health.json()).toMatchObject({ ok: false, bridge: "unavailable", tribler: "unreachable" });
     } finally { await stop(isolated.child); await removeTemporaryDirectory(isolated.directory); }
-  });
+  }, 25_000);
 
+  // 2 * 8 s readiness + 12 s HTTP + 2 * 6 s stop + 2 * 3 s removal retries + 4 s I/O.
   it("A06 rejects an ambiguous episode torrent while preserving a valid sibling", async () => {
     const p2pPython = await startP2pPython();
     const isolated = await startBridge({ STREAM_PROVIDER_EXTERNAL_URL: `${p2pPython.url}/resolve` });
@@ -1006,5 +1186,5 @@ describe("system: configured bridge and Python host", () => {
       await removeTemporaryDirectory(isolated.directory);
       await removeTemporaryDirectory(p2pPython.directory);
     }
-  });
+  }, 50_000);
 });

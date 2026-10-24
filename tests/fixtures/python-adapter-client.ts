@@ -8,7 +8,7 @@ async function main(): Promise<void> {
     id: "python_adapter",
     name: "Python Adapter Host",
     url,
-    timeoutMs: 2_000,
+    timeoutMs: Number(process.argv[3] ?? 2_000),
     policy: new ExternalUrlPolicy({ allowedLoopbackUrls: [url] })
   });
   const streams = await provider.resolve(

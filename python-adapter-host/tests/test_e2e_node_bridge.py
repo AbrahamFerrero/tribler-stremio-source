@@ -10,6 +10,7 @@ import time
 import tempfile
 import unittest
 from urllib.request import urlopen
+from tests.worker_integration import HEALTHY_WORKER_SECONDS, RESOLVER_SECONDS, REQUEST_SECONDS, CLIENT_SECONDS
 
 
 class NodeBridgeEndToEndTest(unittest.TestCase):
@@ -27,7 +28,7 @@ class NodeBridgeEndToEndTest(unittest.TestCase):
                 "addonPath": str(host_root / "tests" / "fixtures" / "fake_kodi_addon"),
                 "addonId": "script.module.fake", "profilePath": str(profile_path),
                 "module": "adapter_host.kodi.adapters.callable_stream_resolver", "callable": "resolve",
-                "workerTimeoutSeconds": 1.5,
+                "workerTimeoutSeconds": HEALTHY_WORKER_SECONDS,
                 "adapterConfig": {"targetModule": "callable_stream_fixture",
                                   "targetCallable": "get_stream_data", "resultMode": "tuple"},
             }]}), encoding="utf-8")
@@ -53,7 +54,7 @@ class NodeBridgeEndToEndTest(unittest.TestCase):
                 "addonPath": str(host_root / "tests" / "fixtures" / "fake_kodi_addon"),
                 "addonId": "script.module.fake", "profilePath": str(root / "profile"),
                 "module": "adapter_host.kodi.adapters.source_pack", "callable": "resolve",
-                "workerTimeoutSeconds": 1.5,
+                "workerTimeoutSeconds": HEALTHY_WORKER_SECONDS,
                 "adapterConfig": {"sourcePackage": "fixture_sources", "sourceFolders": ["en"],
                                   "maxProviderWorkers": 2},
             }]}), encoding="utf-8")
@@ -79,6 +80,9 @@ class NodeBridgeEndToEndTest(unittest.TestCase):
                        if key not in {"TRIBLER_API_KEY", "TRIBLER_URL"}
                        and not key.startswith("PYTHON_ADAPTER_KODI_")}
         environment["PYTHON_ADAPTER_PORT"] = str(port)
+        environment["PYTHON_ADAPTER_RESOLVER_TIMEOUT_SECONDS"] = str(RESOLVER_SECONDS)
+        environment["PYTHON_ADAPTER_REQUEST_TIMEOUT_SECONDS"] = str(REQUEST_SECONDS)
+        environment["PYTHON_ADAPTER_KODI_WORKER_TIMEOUT_SECONDS"] = str(HEALTHY_WORKER_SECONDS)
         environment["PYTHON_ADAPTER_KODI_RESOLVER_ENABLED"] = "true"
         environment["PYTHON_ADAPTER_KODI_ADDON_PATH"] = str(host_root / "tests" / "fixtures" / "fake_kodi_addon")
         environment["PYTHON_ADAPTER_KODI_MODULE"] = "fake_kodi_module"
@@ -114,13 +118,14 @@ class NodeBridgeEndToEndTest(unittest.TestCase):
                     time.sleep(0.05)
             url = f"http://127.0.0.1:{port}/resolve"
             result = subprocess.run(
-                [str(executable), str(repository_root / "tests" / "fixtures" / "python-adapter-client.ts"), url],
+                [str(executable), str(repository_root / "tests" / "fixtures" / "python-adapter-client.ts"),
+                 url, str(int(CLIENT_SECONDS * 1000))],
                 cwd=repository_root,
                 env=environment,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
-                timeout=15,
+                timeout=CLIENT_SECONDS + 5,
                 check=False,
             )
             self.assertEqual(result.returncode, 0, result.stderr)

@@ -2,7 +2,7 @@ import eslint from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["eslint.config.mjs", "vitest.config.mjs", "dist/**", "coverage/**", "node_modules/**", ".worktrees/**", "**/.inspection-work/**"] },
+  { ignores: ["eslint.config.mjs", "vitest.config.mjs", "dist/**", "coverage/**", "node_modules/**", ".cache/**", ".worktrees/**", "**/.inspection-work/**"] },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   {
@@ -16,6 +16,13 @@ export default tseslint.config(
       "@typescript-eslint/no-misused-promises": ["error", { "checksVoidReturn": false }],
       "@typescript-eslint/only-throw-error": "off",
       "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }]
+    }
+  },
+  {
+    files: ["vitest.coverage.config.mjs"],
+    extends: [tseslint.configs.disableTypeChecked],
+    languageOptions: {
+      parserOptions: { projectService: false }
     }
   },
   {

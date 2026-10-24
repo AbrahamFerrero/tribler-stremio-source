@@ -77,7 +77,10 @@ describe("validated episode resource identity through the public pipeline (integ
             const token = /\/source\/([A-Za-z0-9_-]{32})\/stream\.mp4$/.exec(prepared!.stream.url)![1]!;
             expect((await playback.prepare(token)).source).toBe(actual);
           }
-          expect(publicSources.map(entry => entry.source.url)).toEqual(state === "CONTRADICTION" ? [healthy] : [url, healthy]);
+          // Equal technical scores retain input order within an identity group;
+          // the healthy UNKNOWN precedes SUSPICIOUS under the v1.4 contract.
+          expect(publicSources.map(entry => entry.source.url)).toEqual(state === "CONTRADICTION" ? [healthy]
+            : state === "SUSPICIOUS" ? [healthy, url] : [url, healthy]);
           if (state !== "CONTRADICTION") expect(ranking[0]!.score).toBe(ranking[1]!.score);
           expect(new Set(publicSources.map(entry => entry.stream.url)).size).toBe(publicSources.length);
         }

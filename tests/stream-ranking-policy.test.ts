@@ -29,7 +29,7 @@ describe("stream ranking policy", () => {
   it("changes HTTPS-versus-torrent ordering through a local JSON file and startup config", () => {
     const direct: NormalizedStreamSource = { providerId: "test", type: "https", url: "https://media.example/video.mp4",
       quality: "480p", sizeBytes: 1024 ** 3,
-      directHttp: { status: "verified", verified: true, rangeSupported: true, firstByteLatencyMs: 100 } };
+      directHttp: { status: "verified", verified: true, rangeSupported: true, responseHeaderLatencyMs: 100 } };
     const torrent: NormalizedStreamSource = { providerId: "test", type: "magnet", quality: "1080p",
       seeds: 5, sizeBytes: 5 * 1024 ** 3 };
     expect(scoreStream(direct)).toBeGreaterThan(scoreStream(torrent));

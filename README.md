@@ -1,6 +1,6 @@
 # Tribler Stremio Bridge
 
-Documentation for **v1.3.0 — 2026-10-20**. See the [release notes](docs/releases/v1.3.0.md) and [changelog](CHANGELOG.md).
+Documentation for the **v1.4.0 local public-source candidate (unreleased)**. The published baseline is **v1.3.0 — 2026-10-20**. See the [v1.4 notes](docs/releases/v1.4.0.md), [v1.3 notes](docs/releases/v1.3.0.md) and [changelog](CHANGELOG.md). The owner conditionally accepted the tooling risk on 2026-10-24; final-commit hosted private CI and publication approval remain pending.
 
 This personal, independent project explores neutral multimedia engineering for experimentation and household use. It is a professional portfolio project with engineering direction and QA by Abraham Ferrero, developed with AI assistance. It is not officially affiliated with Stremio or Tribler. The public source release is available under [PolyForm Noncommercial 1.0.0](LICENSE).
 
@@ -71,7 +71,7 @@ Catalogs describe media. `StreamProvider` instances produce normalized sources. 
 
 ## Quick start on Windows
 
-Requires Node.js 20 or newer and a local Tribler REST API with its own key. The CI configuration targets Node 20 and Python 3.11 on Linux and Windows; this is a configured matrix, not a claim that every client/version combination has passed. Python is optional for the adapter path.
+The application declares Node.js >=20. Installing the locked development toolchain requires the intersection of its engine ranges: Node 20.19+ within 20.x, Node 22.12+ within 22.x, or Node 24+. Node 21 and 23 do not satisfy the locked Vitest range. A local Tribler REST API with its own key is required for torrent playback. The CI configuration targets Node 20 and Python 3.11 on Linux and Windows; this is a configured matrix, not a claim that every client/version combination has passed. Python is optional for the adapter path.
 
 ```powershell
 git clone <repository-url>
@@ -136,11 +136,52 @@ For IMDb movie requests, the bridge preserves the exact Stremio video ID as `ext
 
 ## Stream ranking
 
+Final order is bridge-owned CORROBORATED, then UNKNOWN/unclassified, then
+SUSPICIOUS. Technical score, descending seeds, ascending effective size and
+stable input order break ties within each group. HTTP(S), HLS and Tribler have
+no absolute transport priority. Supported contradictions remain excluded.
+`STREAM_MAX_RESULTS_PER_PROVIDER` defaults to 50 final distinct results per
+provider, accepts integers 1–100 and rejects invalid/empty settings. It applies
+after admission, deduplication and ranking; above the cap the selected subset
+can change. The separate raw provider safety limit remains 100.
+
+Resolution and codec use field-local claims; contradictory claims in the
+selected field remain unknown. Size uses a valid provider declaration first,
+otherwise only qualified bridge-observed initial HTTP 206 range evidence.
+HLS observations alone do not supply effective size. Labels use GiB/MiB and do
+not establish full-file integrity. Language/audio points require whole closed
+claims; generic language is not a public track label. See the
+[metadata contract](docs/safe-stream-descriptions.md).
+
 The bundled [ranking policy](config/stream-ranking.default.json) scores direct probe health and latency, torrent seed availability, and resolution. Transport-verified HTTPS/HLS receives a strong preference over weak torrents; timeout and transient failures remain lower-ranked when the URL is otherwise admissible. A completed non-transient HTTP 4xx response is excluded. Strong torrents can still outrank uncertain direct sources. Existing codec and file-size adjustments remain in the scorer. Verification describes bounded media/transport evidence, not semantic identity or sustained playback. Current compact labels use `HTTP✓` or `HTTPS✓` for verified transport and separate `ID✓`, `ID!`, or `ID?` markers where the bridge classifies identity. A marker may be absent for an unclassified source; even `ID✓` is bounded corroboration, not audiovisual proof.
+
+The compact seconds label and Net latency bands use `responseHeaderLatencyMs`: time from the probe request start until the effective root response headers are available, including redirects and any required HTTP fallback. Body inspection, optional MP4 inspection and HLS playlist/resource verification are excluded. Cached observations retain their original measurement. Only verified probes receive latency points; invalid or missing measurements receive none. This measures initial HTTP responsiveness, not exact body TTFB, download speed, buffering, playback startup or the speed of every HLS segment. A quick response does not guarantee better playback. Correcting this timing can change scores, final order and the existing score-based dedupe selection and subsequent quotas; policy weights remain unchanged.
 
 To tune the ordering without editing TypeScript, copy the policy to `config/stream-ranking.local.json`, edit its numeric weights, and set `STREAM_RANKING_CONFIG_FILE=./config/stream-ranking.local.json` in `.env`. The file is local and ignored by Git. The bridge rejects missing, malformed, or out-of-range configured policies at startup. `DIRECT_HTTP_PROBE_ENABLED=true` enables verification; with the probe disabled, direct sources have unknown health and cannot be labelled verified. The probe uses the existing hardened outbound transport.
 
-Cache-first probing is integrated and covered by controlled regressions; its real-world causal benefit was not isolated by an A/B comparison, so no percentage improvement is claimed. `STREMIO_ADDON_REQUEST_TIMEOUT_MS` defaults to 5000 ms in v1.3.0. An 8000 ms setting is a local recommendation, not a new production default.
+`STREAM_RANKING_DETAILS=true` independently opts provider stream responses into the
+two-line ranking description (default `false`; only `true` and `false` are accepted).
+Compact names stay unchanged. Available safe audio/subtitle labels occupy the
+first line and `#N · Score … · Avail … · Res … · Size … · Codec … · Meta … · Net …`
+the second. Without language labels, rank/score occupy the first line and the six
+components the second. `#N` is the final public position after identity grouping,
+deduplication and per-provider quotas, not a global score rank. Identity remains
+the bridge-owned marker in the name; score is neither identity confidence nor a
+playback guarantee. Language labels remain upstream declarations, not verified tracks.
+The description uses the same effective JSON policy as the resolver and the
+existing `title` alias, without also sending `description`. Scores and components
+are independently rounded to at most two decimals, with trailing zeros removed
+and explicit signs on components (including `+0`). Each number differs from its
+unrounded value by at most 0.005 points; the displayed component sum and displayed
+total can differ by at most 0.035 points. Ordering uses unrounded numbers.
+Relative policy paths resolve from the startup working directory. Keep personal
+profiles local and ignored; changing weights does not enable details.
+
+The F layout uses the standard Stremio description field; no custom client UI
+or independent tooltip field is introduced. Historical Desktop/manual playback
+observations have limited scope; see the [QA summary](docs/qa/v1.4-release-qa.md).
+
+Cache-first probing is integrated and covered by controlled regressions; its real-world causal benefit was not isolated by an A/B comparison, so no percentage improvement is claimed. `STREMIO_ADDON_REQUEST_TIMEOUT_MS` defaults to 5000 ms in this candidate. An 8000 ms setting is a local recommendation, not a new production default.
 
 An HTTPS-labelled source stays on HTTPS during playback. Direct and Tribler are separate Stremio choices; a Direct failure does not switch to Tribler.
 
@@ -184,7 +225,7 @@ BitTorrent traffic is delegated to Tribler; Node contains no direct BitTorrent c
 
 The transport minimizes source headers, restricts them to the entry origin or explicitly configured recipients, and never forwards cookies, `Authorization`, or forwarding headers. Referer is absent by default; an explicit source requirement is reduced to origin-only unless an exact value is locally authorized. HTTPS-to-HTTP propagation is blocked. The supported Windows launcher filters the Python host environment before process creation; direct/embedded entry points reject Tribler variables at startup but cannot undo interpreter inheritance. Workers apply bounded IPC, filtered environments and audit-hook filesystem restrictions. Locally installed modules remain trusted code; these controls are not an operating-system sandbox.
 
-Direct HTTPS does not hide the public client IP from the media server. Historical local runtime observations cover only their measured process/window; they do not prove anonymity against peers, trackers, DHT, PEX, DNS or an external observer, or certify v1.3.0.
+Direct HTTPS does not hide the public client IP from the media server. Historical local runtime observations cover only their measured process/window; they do not prove anonymity against peers, trackers, DHT, PEX, DNS or an external observer, or certify this candidate.
 
 `/health` distinguishes a ready bridge from a degraded configured provider and an unavailable Tribler endpoint. It returns HTTP 503 when any enabled provider is in an error state, even when Tribler and other providers remain operational. `/providers` provides the corresponding sanitized provider status.
 
@@ -202,6 +243,7 @@ npm run test:all
 npm run test:acceptance
 npm run test:security
 npm run coverage
+npm run test:system
 npm run build
 npm audit
 npm audit --omit=dev
@@ -211,6 +253,21 @@ python -m unittest discover -s tests -v
 python -m coverage run --branch -m unittest discover -s tests -v
 python -m coverage report --include=adapter_host/*
 ```
+
+`npm run coverage` measures production `src/**` with V8 using every test except
+`tests/system/**`; it includes integration, acceptance, security and the other
+tests that launch processes. `npm run test:system` is a separate mandatory gate
+running all process-level system cases without V8. Both must pass; coverage
+alone does not represent complete test execution. CI requires both gates on
+Linux and Windows, and attempts each after dependency installation even if
+another validation step fails. Failures remain job failures.
+
+`npm run test:complete` runs the complete Node test inventory without coverage
+by chaining `test:all`, `test:acceptance` and `test:system` in order, stopping on
+any failure and keeping system separate from the other suites.
+The existing `test:all` command covers unit/component/contract/integration and
+security tests; acceptance and system have their own commands above. None of
+these commands constitutes a Stremio client or real-environment smoke.
 
 Opt-in tools:
 

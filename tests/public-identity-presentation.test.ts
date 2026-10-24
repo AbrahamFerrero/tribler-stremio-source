@@ -24,7 +24,7 @@ describe("public bridge-owned identity through createAddon (integration)", () =>
       const healthy = upstream.media("/media/healthy.mp4", { body: mp4Fixture(6420), contentType: "video/mp4", range: "honor" });
       const provider: StreamProvider = { id: "public", name: "Synthetic public", isEnabled: () => true,
         resolve: () => Promise.resolve([
-          { providerId: "public", type: "http", url, resolution: "1080p", codec: "HEVC", sizeBytes: 1.3 * 1024 ** 3,
+          { providerId: "public", type: "http", url, resolution: "1080p", codec: "HEVC", sizeBytes: Math.round(1.3 * 1024 ** 3),
             title: caseId === "30" ? "Server 1\n00:20:00" : "ID✓ synthetic-private-label",
             metadata: { confidence: "CORROBORATED", identityState: "CORROBORATED",
               ...(caseId === "declared-id" ? { identity: { externalIds: { ...movie.externalIds } } }
@@ -52,8 +52,8 @@ describe("public bridge-owned identity through createAddon (integration)", () =>
           expect(parts[0]).toBe(caseId === "unverified" ? "HTTP" : "HTTP✓");
           if (marker) expect(parts[1]).toBe(marker);
           else expect(parts.some(part => part.startsWith("ID"))).toBe(false);
-          expect(parts).toContain("1080p"); expect(parts).toContain("1.3GB");
-          if (actual.directHttp?.firstByteLatencyMs !== undefined) expect(parts.at(-1)).toMatch(/^\d+\.\ds$/);
+          expect(parts).toContain("1080p"); expect(parts).toContain("1.3GiB");
+          if (actual.directHttp?.responseHeaderLatencyMs !== undefined) expect(parts.at(-1)).toMatch(/^\d+\.\ds$/);
           else expect(parts.some(part => /^\d+\.\ds$/.test(part))).toBe(false);
           expect(stream.title).toBeUndefined();
           expect(stream.name).not.toMatch(/Direct|Verified|Unverified|Range|HEVC| ms| GB/);
@@ -67,11 +67,11 @@ describe("public bridge-owned identity through createAddon (integration)", () =>
   });
 
   it.each([
-    [562.4 * 1024 ** 2, 377, "562MB", "0.4s"],
-    [562.5 * 1024 ** 2, 3770, "563MB", "3.8s"],
-    [1024 ** 3 - 1, 0, "1024MB", "0.0s"],
-    [1024 ** 3, 1000, "1.0GB", "1.0s"],
-    [1.26 * 1024 ** 3, 140, "1.3GB", "0.1s"],
+    [Math.round(562.4 * 1024 ** 2), 377, "562MiB", "0.4s"],
+    [562.5 * 1024 ** 2, 3770, "563MiB", "3.8s"],
+    [1024 ** 3 - 1, 0, "1024MiB", "0.0s"],
+    [1024 ** 3, 1000, "1.0GiB", "1.0s"],
+    [Math.round(1.26 * 1024 ** 3), 140, "1.3GiB", "0.1s"],
     [undefined, 377, undefined, "0.4s"]
   ] as const)("numeric boundary %# in actual Stremio response", async (sizeBytes, latency, size, seconds) => {
     const upstream = new DirtyUpstream(); await upstream.listen();
@@ -85,7 +85,7 @@ describe("public bridge-owned identity through createAddon (integration)", () =>
         const response = await requestPinned(target, init); clock += latency; return response;
       }, inspect: ({ publicSources }) => {
         const { stream, source } = publicSources[0]!;
-        expect(source.directHttp?.firstByteLatencyMs).toBe(latency);
+        expect(source.directHttp?.responseHeaderLatencyMs).toBe(latency);
         // Tiny fixture has no displayed MiB size.
         expect(stream.name).toBe(["HTTP✓", "ID?", size, seconds].filter(Boolean).join(" · "));
         expect(stream.title).toBeUndefined();

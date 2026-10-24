@@ -4,6 +4,30 @@ import { isLoopbackHostname, loadConfig } from "../src/config";
 describe("loopback validation", () => {
   afterEach(() => vi.unstubAllEnvs());
 
+  it.each([undefined, "", "false", "true"])("loads independent ranking detail flag %s", raw => {
+    vi.stubEnv("TRIBLER_URL", "http://127.0.0.1:52194");
+    vi.stubEnv("STREAM_RANKING_DETAILS", raw);
+    expect(loadConfig().streamRankingDetails).toBe(raw === "true");
+  });
+
+  it("rejects a malformed ranking detail flag", () => {
+    vi.stubEnv("TRIBLER_URL", "http://127.0.0.1:52194");
+    vi.stubEnv("STREAM_RANKING_DETAILS", "yes");
+    expect(loadConfig).toThrow("STREAM_RANKING_DETAILS must be true or false");
+  });
+
+  it.each([undefined, "1", "50", "60", "100"])("loads final provider quota %s", raw => {
+    vi.stubEnv("TRIBLER_URL", "http://127.0.0.1:52194");
+    vi.stubEnv("STREAM_MAX_RESULTS_PER_PROVIDER", raw);
+    expect(loadConfig().streamMaxResultsPerProvider).toBe(raw === undefined ? 50 : Number(raw));
+  });
+
+  it.each(["0", "-1", "101", "1.5", "invalid", "", " ", "NaN", "Infinity"])("rejects invalid final provider quota %s", raw => {
+    vi.stubEnv("TRIBLER_URL", "http://127.0.0.1:52194");
+    vi.stubEnv("STREAM_MAX_RESULTS_PER_PROVIDER", raw);
+    expect(loadConfig).toThrow("STREAM_MAX_RESULTS_PER_PROVIDER must be an integer between 1 and 100");
+  });
+
   it("defaults HTTP playback to strict privacy with a one-hour opaque-token TTL", () => {
     vi.stubEnv("TRIBLER_URL", "http://127.0.0.1:52194");
     vi.stubEnv("HTTP_PRIVACY_MODE", "strict");

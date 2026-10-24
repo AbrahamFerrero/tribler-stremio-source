@@ -88,9 +88,15 @@ export interface DirectHttpProbeMetadata {
   rangeSupported: boolean;
   /** Upstream response status, when the probe received an HTTP response. */
   responseStatus?: number;
-  firstByteLatencyMs?: number;
+  /** Root effective response headers since probe request start, including
+   * redirects/fallback. Excludes body/MP4/HLS verification; not TTFB or throughput.
+   * Finite, nonnegative milliseconds, retained unchanged on cache hits.
+   */
+  responseHeaderLatencyMs?: number;
   contentType?: string;
   observedSizeBytes?: number;
+  /** Coherent identity-encoded initial 206 headers and bounded prefix; not full-file integrity. */
+  sizeEvidence?: "initial_range_206";
   /** Explicit archive signature in the bounded initial response prefix. */
   archiveFormat?: "zip";
   /** An obvious non-media document signature in the bounded response prefix. */

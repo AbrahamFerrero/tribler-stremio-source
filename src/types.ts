@@ -62,10 +62,12 @@ export interface AppConfig {
     maxConcurrent: number;
   };
   streamRankingPolicy: import("./streams/ranking-policy").StreamRankingPolicy;
+  streamRankingDetails?: boolean;
   httpPrivacy: import("./network/http-privacy").HttpPrivacyPolicy;
   httpStreamTokenTtlMs: number;
   httpStreamTokenMaxEntries: number;
   streamProviders: string[];
+  streamMaxResultsPerProvider?: number;
   streamProviderTimeoutMs: number;
   streamProviderMaxConcurrent: number;
   externalStreamProviderEnabled: boolean;

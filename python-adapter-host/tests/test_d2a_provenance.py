@@ -8,6 +8,8 @@ import unittest
 from contextlib import redirect_stdout, redirect_stderr
 from io import StringIO
 
+from tests.worker_integration import HEALTHY_WORKER_SECONDS
+
 from adapter_host.kodi.process_manager import KodiWorkerConfig, KodiWorkerError, KodiWorkerProcessManager
 import test_http_api
 
@@ -32,7 +34,7 @@ class InnerSourceProvenanceTests(unittest.IsolatedAsyncioTestCase):
         settings.write_text(json.dumps({"fixture.mode": mode}), encoding="utf-8")
         manager = KodiWorkerProcessManager(KodiWorkerConfig(
             addon_path=FIXTURE, module_name=module, settings_file=settings,
-            profile_path=directory / "profile", timeout_seconds=2,
+            profile_path=directory / "profile", timeout_seconds=HEALTHY_WORKER_SECONDS,
             maximum_results=maximum, adapter_config=adapter_config))
         self.managers.append(manager)
         return manager

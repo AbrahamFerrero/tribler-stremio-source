@@ -4,6 +4,8 @@ from pathlib import Path
 from types import SimpleNamespace
 import unittest
 
+from tests.worker_integration import HEALTHY_WORKER_SECONDS
+
 from adapter_host.kodi.adapters.p2p_metadata import (
     _build_query,
     _source_response_compatibility,
@@ -115,7 +117,7 @@ class P2pMetadataAdapterTests(unittest.IsolatedAsyncioTestCase):
             adapter_config=self.adapter_config,
             addon_id="script.module.fake",
             settings_file=FIXTURE / "settings.example.json",
-            timeout_seconds=1,
+            timeout_seconds=HEALTHY_WORKER_SECONDS,
         ))
         resolver = KodiInstalledResolver(manager)
 
@@ -144,7 +146,7 @@ class P2pMetadataAdapterTests(unittest.IsolatedAsyncioTestCase):
             adapter_config=self.adapter_config,
             addon_id="script.module.fake",
             settings_file=FIXTURE / "settings.example.json",
-            timeout_seconds=1,
+            timeout_seconds=HEALTHY_WORKER_SECONDS,
         ))
 
         results = await KodiInstalledResolver(manager).resolve(MediaItem(
@@ -164,7 +166,7 @@ class P2pMetadataAdapterTests(unittest.IsolatedAsyncioTestCase):
             adapter_config=self.adapter_config,
             addon_id="script.module.fake",
             settings_file=FIXTURE / "settings.example.json",
-            timeout_seconds=1,
+            timeout_seconds=HEALTHY_WORKER_SECONDS,
             maximum_results=7,
         ))
 
@@ -185,7 +187,7 @@ class P2pMetadataAdapterTests(unittest.IsolatedAsyncioTestCase):
             module_name="adapter_host.kodi.adapters.p2p_metadata",
             adapter_config=self.adapter_config,
             addon_id="script.module.fake",
-            timeout_seconds=1,
+            timeout_seconds=HEALTHY_WORKER_SECONDS,
         ))
         resolver = KodiInstalledResolver(manager)
 
@@ -208,7 +210,7 @@ class P2pMetadataAdapterTests(unittest.IsolatedAsyncioTestCase):
             adapter_config=self.adapter_config,
             addon_id="script.module.fake",
             settings_file=FIXTURE / "settings.example.json",
-            timeout_seconds=1,
+            timeout_seconds=HEALTHY_WORKER_SECONDS,
         ))
         results = await KodiInstalledResolver(manager).resolve(MediaItem(
             id="tt9999999999:2:3",
@@ -228,7 +230,7 @@ class P2pMetadataAdapterTests(unittest.IsolatedAsyncioTestCase):
             adapter_config=self.adapter_config,
             addon_id="script.module.fake",
             settings_file=FIXTURE / "settings.example.json",
-            timeout_seconds=1,
+            timeout_seconds=HEALTHY_WORKER_SECONDS,
         ))
         results = await KodiInstalledResolver(manager).resolve(MediaItem(
             id="tt9999999999:2:4", kind="episode", title="",
@@ -243,7 +245,7 @@ class P2pMetadataAdapterTests(unittest.IsolatedAsyncioTestCase):
             adapter_config=self.adapter_config,
             addon_id="script.module.fake",
             settings_file=FIXTURE / "settings.example.json",
-            timeout_seconds=1,
+            timeout_seconds=HEALTHY_WORKER_SECONDS,
         ))
         results = await KodiInstalledResolver(manager).resolve(MediaItem(
             id="tt9999999999:2:2", kind="episode", title="",

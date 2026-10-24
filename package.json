@@ -1,6 +1,6 @@
 {
   "name": "tribler-stremio-bridge",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "private": true,
   "description": "Local Stremio addon that streams torrents through Tribler's REST API",
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -34,9 +34,10 @@
     "test": "vitest run --exclude \"tests/integration/**\" --exclude \"tests/acceptance/**\" --exclude \"tests/system/**\"",
     "test:integration": "vitest run tests/integration",
     "test:acceptance": "vitest run tests/acceptance",
-    "test:system": "vitest run tests/system",
+    "test:system": "vitest run tests/system --coverage.enabled=false",
     "test:all": "vitest run --exclude \"tests/acceptance/**\" --exclude \"tests/system/**\"",
-    "coverage": "vitest run --coverage --coverage.provider=v8 --coverage.include=src/** --coverage.exclude=src/**/*.d.ts --coverage.exclude=src/examples/** --coverage.reporter=text-summary"
+    "test:complete": "npm run test:all && npm run test:acceptance && npm run test:system",
+    "coverage": "vitest run --config vitest.coverage.config.mjs"
   },
   "dependencies": {
     "dotenv": "^17.2.2",

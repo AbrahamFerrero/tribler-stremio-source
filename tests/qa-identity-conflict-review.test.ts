@@ -57,11 +57,18 @@ describe("opt-in conflict frequency", () => {
   it("completes four viable cases with 28 providers while preserving failed and timed-out outcomes", async () => {
     const args = parseConflictArgs(["--corpus", "private.json", "--out-dir", "private-dir", "--max-cases", "4",
       "--deadline-ms", "240000", "--case-deadline-ms", "60000", "--provider-concurrency", "6"]);
-    // Millisecond-scale provider fixtures exercise the real queue and native abort deadlines.
+    // Drive responses and abort deadlines on the same virtual clock. Native
+    // AbortSignal.timeout uses a separate clock that vi.useFakeTimers cannot advance.
     const config = conflictConfig({ ...testConfig(), streamProviderTimeoutMs: 80 }, args);
     const controller = new AbortController();
     const rows: Parameters<typeof conflictReport>[0] = [];
     let active = 0, peak = 0;
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Date"] });
+    const deadlines = vi.spyOn(AbortSignal, "timeout").mockImplementation(ms => {
+      const deadline = new AbortController();
+      setTimeout(() => deadline.abort(new DOMException("Synthetic deadline", "TimeoutError")), ms);
+      return deadline.signal;
+    });
     try {
       for (let caseIndex = 0; caseIndex < args.maxCases; caseIndex += 1) {
         const frequency = new ConflictFrequency(item, false);
@@ -85,9 +92,16 @@ describe("opt-in conflict frequency", () => {
         }
         const signal = conflictCaseSignal(controller.signal, args.caseDeadlineMs);
         const resolver = new StreamResolver(registry, new ExternalUrlPolicy(), undefined, frequency.trace);
-        await withinSmokeDeadline(() => resolver.resolve(item, signal), signal);
+        const pending = withinSmokeDeadline(() => resolver.resolve(item, signal), signal);
+        await vi.advanceTimersByTimeAsync(28 * config.streamProviderTimeoutMs);
+        await pending;
         const observed = frequency.report();
-        expect(observed).toMatchObject({ intakeObserved: true, received: 20, normalizable: 20, early: 20, pattern05: 20 });
+        const states = registry.status();
+        const safeStates = states.map(({ status, lastError }) => ({ status, lastError }));
+        expect(observed, JSON.stringify(safeStates)).toMatchObject({ intakeObserved: true, received: 20, normalizable: 20, early: 20, pattern05: 20 });
+        expect(states).toHaveLength(28);
+        expect(states.filter(row => row.status === "ok")).toHaveLength(20);
+        expect(states.filter(row => row.lastError === "Provider failed")).toHaveLength(4);
         expect(registry.status().filter(row => row.status === "error")).toHaveLength(8);
         expect(registry.status().filter(row => row.lastError === "Provider timed out or was cancelled")).toHaveLength(4);
         rows.push({ case: caseIndex + 1, status: "completed", frequency: observed, diagnostics: null });
@@ -99,7 +113,14 @@ describe("opt-in conflict frequency", () => {
       expect(report.rates.earlyOfNormalizable).toEqual({ numerator: 80, denominator: 80, percent: 100 });
       expect(report.observationCoverage).toEqual({ casesWithIntake: 4, casesWithoutIntake: 0 });
       expect(JSON.stringify(report)).not.toContain("FAKE_PRIVATE");
-    } finally { controller.abort(); }
+      expect(deadlines.mock.calls.filter(([ms]) => ms === 80)).toHaveLength(28 * 4);
+      expect(deadlines.mock.calls.filter(([ms]) => ms === args.caseDeadlineMs)).toHaveLength(4);
+    } finally {
+      controller.abort();
+      deadlines.mockRestore();
+      vi.clearAllTimers();
+      vi.useRealTimers();
+    }
   });
 
   it("lets global cancellation override the case deadline and reports missing intake as unknown", async () => {

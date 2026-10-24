@@ -21,6 +21,16 @@ function bufferMiB(name: string, fallback: number): number {
   return mib * 1024 * 1024;
 }
 
+function streamMaxResultsPerProvider(): number {
+  const raw = process.env.STREAM_MAX_RESULTS_PER_PROVIDER;
+  if (raw === undefined) return 50;
+  const value = Number(raw);
+  if (!raw.trim() || !Number.isSafeInteger(value) || value < 1 || value > 100) {
+    throw new Error("STREAM_MAX_RESULTS_PER_PROVIDER must be an integer between 1 and 100");
+  }
+  return value;
+}
+
 function booleanValue(name: string, fallback: boolean): boolean {
   const raw = process.env[name];
   if (raw === undefined || raw === "") return fallback;
@@ -169,10 +179,12 @@ export function loadConfig(): AppConfig {
       maxConcurrent: positiveInteger("DIRECT_HTTP_PROBE_MAX_CONCURRENT", 3)
     },
     streamRankingPolicy: loadStreamRankingPolicy(process.env.STREAM_RANKING_CONFIG_FILE?.trim() || undefined),
+    streamRankingDetails: booleanValue("STREAM_RANKING_DETAILS", false),
     httpPrivacy: httpPrivacy(),
     httpStreamTokenTtlMs: positiveInteger("HTTP_STREAM_TOKEN_TTL_SECONDS", 3_600) * 1_000,
     httpStreamTokenMaxEntries: positiveInteger("HTTP_STREAM_TOKEN_MAX_ENTRIES", 1_000),
     streamProviders: commaList("STREAM_PROVIDERS", "catalog,manual"),
+    streamMaxResultsPerProvider: streamMaxResultsPerProvider(),
     streamProviderTimeoutMs: positiveInteger("STREAM_PROVIDER_TIMEOUT_MS", 5_000),
     streamProviderMaxConcurrent: positiveInteger("STREAM_PROVIDER_MAX_CONCURRENT", 8),
     externalStreamProviderEnabled: booleanValue("STREAM_PROVIDER_EXTERNAL_ENABLED", false),

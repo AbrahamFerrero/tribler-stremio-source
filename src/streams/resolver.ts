@@ -1,9 +1,10 @@
 import type { Logger } from "../logger";
+import { validSeedCount } from "./seed-count";
 import { ExternalUrlPolicy } from "../network/url-policy";
 import { hasKnownDirectVideoName, normalizeStreamSource } from "./normalization";
 import { streamDeduplicationKey } from "./stream-deduplication";
 import { canClassifyAdmittedUnknown, canObservePreProbeMovieResourceYearConflict, effectiveEpisodeIdentityState, effectiveMovieIdentityState, identityMismatch, identityMismatchReason, measuredRuntimeMismatch, normalizeCandidateIdentity, sparseCandidateIdentityState } from "./identity-qualification";
-import { streamHeight } from "./details";
+import { effectiveStreamSize, streamHeight } from "./details";
 import { DirectStreamProbe, isHlsCandidate } from "./direct-stream-probe";
 import type { DirectStreamProbeDiagnostics } from "./direct-stream-probe";
 import { scoreStream, streamScoreComponents, type StreamScoreComponents } from "./scoring";
@@ -11,7 +12,6 @@ import { defaultStreamRankingPolicy, type StreamRankingPolicy } from "./ranking-
 import type { BridgeIdentityState, NormalizedMediaItem, NormalizedStreamSource, ProviderDiagnostic, StreamProvider } from "./types";
 
 const MAX_RAW_RESULTS_PER_PROVIDER = 100;
-const MAX_DISTINCT_RESULTS_PER_PROVIDER = 50;
 
 // Weak keys retain no candidates beyond their existing in-process lifetime.
 // No setter or provider-controlled field is exposed; normalization creates new keys.
@@ -19,6 +19,11 @@ const bridgeIdentityStates = new WeakMap<NormalizedStreamSource, BridgeIdentityS
 
 export function getBridgeIdentityState(source: NormalizedStreamSource): BridgeIdentityState | undefined {
   return bridgeIdentityStates.get(source);
+}
+
+function identityRankingGroup(source: NormalizedStreamSource): number {
+  const state = getBridgeIdentityState(source);
+  return state === "CORROBORATED" ? 0 : state === "SUSPICIOUS" ? 2 : 1;
 }
 
 /** Empty, immutable object used only for in-process reference equality. */
@@ -50,7 +55,7 @@ export interface StreamResolverTrace {
   preProbeIdentity?(event: PreProbeIdentityDecision): void;
   probeNetworkStart?(providerId: string): void;
   ranking?(candidates: readonly {
-    transport: string; health?: string; latencyMs?: number; seeds?: number; quality: number;
+    transport: string; health?: string; responseHeaderLatencyMs?: number; seeds?: number; quality: number;
     score: number; components: StreamScoreComponents; providerId?: string;
   }[]): void;
 }
@@ -258,7 +263,8 @@ export class StreamResolver {
     private readonly policy: ExternalUrlPolicy,
     private readonly directProbe?: DirectStreamProbe,
     private readonly trace?: StreamResolverTrace,
-    private readonly rankingPolicy: StreamRankingPolicy = defaultStreamRankingPolicy
+    private readonly rankingPolicy: StreamRankingPolicy = defaultStreamRankingPolicy,
+    private readonly maxResultsPerProvider = 50
   ) {}
 
   diagnostics(): ProviderDiagnostic[] { return this.registry.status(); }
@@ -421,12 +427,14 @@ export class StreamResolver {
     const ranked = admitted
       .map((source, index) => ({ source, index }))
       .sort((left, right) => {
+        const identityDifference = identityRankingGroup(left.source) - identityRankingGroup(right.source);
+        if (identityDifference !== 0) return identityDifference;
         const scoreDifference = scoreStream(right.source, this.rankingPolicy) - scoreStream(left.source, this.rankingPolicy);
         if (scoreDifference !== 0) return scoreDifference;
-        const seedDifference = (right.source.seeds ?? -1) - (left.source.seeds ?? -1);
+        const seedDifference = (validSeedCount(right.source.seeds) ?? -1) - (validSeedCount(left.source.seeds) ?? -1);
         if (seedDifference !== 0) return seedDifference;
-        const sizeDifference = (left.source.sizeBytes ?? Number.POSITIVE_INFINITY)
-          - (right.source.sizeBytes ?? Number.POSITIVE_INFINITY);
+        const sizeDifference = (effectiveStreamSize(left.source) ?? Number.POSITIVE_INFINITY)
+          - (effectiveStreamSize(right.source) ?? Number.POSITIVE_INFINITY);
         if (sizeDifference !== 0) return sizeDifference;
         return left.index - right.index;
       })
@@ -434,14 +442,14 @@ export class StreamResolver {
     const providerCounts = new Map<string, number>();
     const final = ranked.filter((source) => {
       const count = providerCounts.get(source.providerId) ?? 0;
-      if (count >= MAX_DISTINCT_RESULTS_PER_PROVIDER) return false;
+      if (count >= this.maxResultsPerProvider) return false;
       providerCounts.set(source.providerId, count + 1);
       return true;
     });
     this.trace?.ranking?.(final.map((source) => ({
       transport: source.type,
       ...(source.directHttp ? { health: source.directHttp.status } : {}),
-      ...(source.directHttp?.firstByteLatencyMs !== undefined ? { latencyMs: source.directHttp.firstByteLatencyMs } : {}),
+      ...(source.directHttp?.responseHeaderLatencyMs !== undefined ? { responseHeaderLatencyMs: source.directHttp.responseHeaderLatencyMs } : {}),
       ...(source.seeds !== undefined ? { seeds: source.seeds } : {}),
       quality: streamHeight(source),
       score: scoreStream(source, this.rankingPolicy),

@@ -33,7 +33,7 @@ describe("bridge-owned identity confidence foundation (component)", () => {
           const sources = snapshots.get("probed")!;
           expect(sources.map(getBridgeIdentityState)).toEqual(["UNKNOWN", "UNKNOWN", "CORROBORATED", "CONTRADICTION"]);
           expect(publicSources).toHaveLength(3);
-          expect(publicSources.map(entry => getBridgeIdentityState(entry.source))).toEqual(["UNKNOWN", "UNKNOWN", "CORROBORATED"]);
+          expect(publicSources.map(entry => getBridgeIdentityState(entry.source))).toEqual(["CORROBORATED", "UNKNOWN", "UNKNOWN"]);
           for (const source of sources) {
             expect(Object.hasOwn(source, "identityState")).toBe(false);
             expect(getBridgeIdentityState(normalizeStreamSource(source, source.providerId)!)).toBeUndefined();

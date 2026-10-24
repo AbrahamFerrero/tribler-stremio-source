@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requestPinned } from "../src/network/url-policy";
 
 describe("pinned HTTP response process safety", () => {
+  // One child command allows 10 s; reserve 5 s for parent scheduling and output assertions.
   it.each([204, 205, 304])("survives GET %i and a subsequent GET 200", async (status) => {
     const { stdout, stderr } = await promisify(execFile)(process.execPath, ["--import", "tsx", "--eval", `
       const { createServer } = require('node:http');
@@ -31,7 +32,7 @@ describe("pinned HTTP response process safety", () => {
     `], { cwd: process.cwd(), timeout: 10_000 });
     expect(stdout.trim()).toBe("survived");
     expect(stderr).toBe("");
-  });
+  }, 15_000);
 });
 
 describe("pinned HTTP response lifecycle (loopback only)", () => {

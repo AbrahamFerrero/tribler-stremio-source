@@ -255,7 +255,7 @@ describe("DirectStreamProbe", () => {
       status: "verified", verified: true, rangeSupported: true, responseStatus: 206,
       observedSizeBytes: 1234, contentType: "video/mp4"
     });
-    expect(result[0]?.directHttp?.firstByteLatencyMs).toEqual(expect.any(Number));
+    expect(result[0]?.directHttp?.responseHeaderLatencyMs).toEqual(expect.any(Number));
   });
 
   it("treats a non-ZIP HTTP 200 as reachable after reading only its initial prefix", async () => {

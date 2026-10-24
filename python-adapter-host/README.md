@@ -485,3 +485,16 @@ requirements; the scope closure accepts their deferral without changing criteria
 
 For the separate D2b synthetic funnel, commands, structural counts and inference
 limits, see [provider quality evaluation](../docs/provider-quality-evaluation.md#kodi-source-evaluation-d2b).
+
+## v1.4 source candidate
+
+The unreleased v1.4 candidate validates original language/audio characters
+before trimming, omitting unsafe decorative metadata without rejecting an
+otherwise valid source. Node remains the scoring authority. Python field and
+worker contracts retain their documented limits; this is not universal Kodi
+compatibility or an operating-system sandbox. The Windows stabilization work
+is confined to test harness preparation, timing, diagnostics and cleanup;
+production launcher/worker deadlines are not changed by that work.
+See the [metadata contract](../docs/safe-stream-descriptions.md) and
+[QA summary](../docs/qa/v1.4-release-qa.md). Historical v1.3 publication is
+preserved; the transformed v1.4 tree has no inherited private QA PASS.

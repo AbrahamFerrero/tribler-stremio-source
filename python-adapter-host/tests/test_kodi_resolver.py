@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 import unittest
 
+from tests.worker_integration import HEALTHY_WORKER_SECONDS
+
 from adapter_host.kodi.process_manager import KodiWorkerConfig, KodiWorkerProcessManager
 from adapter_host.kodi_installed_resolver import KodiInstalledResolver
 from adapter_host.models import MediaItem
@@ -18,7 +20,7 @@ class KodiInstalledResolverTests(unittest.IsolatedAsyncioTestCase):
             module_name="fake_kodi_module",
             addon_id="script.module.fake",
             settings_file=FIXTURE / "settings.example.json",
-            timeout_seconds=1,
+            timeout_seconds=HEALTHY_WORKER_SECONDS,
         ))
         resolver = KodiInstalledResolver(manager)
         results = await resolver.resolve(MediaItem(id="fixture:ok", kind="movie", title="Fixture"))

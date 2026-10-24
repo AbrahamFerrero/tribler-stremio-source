@@ -107,5 +107,5 @@ export function createStreamResolver(
     }
   }
   const directProbe = transport ? new DirectStreamProbe(transport, config.directHttpProbe, log) : undefined;
-  return new StreamResolver(registry, policy, directProbe, trace, config.streamRankingPolicy);
+  return new StreamResolver(registry, policy, directProbe, trace, config.streamRankingPolicy, config.streamMaxResultsPerProvider);
 }

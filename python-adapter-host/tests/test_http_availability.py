@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager, nullcontext
 import os
 import threading
 import unittest
@@ -13,6 +13,12 @@ from adapter_host.config import AdapterSettings, KodiResolverProfile
 from adapter_host.models import MediaItem, StreamSource
 from adapter_host.resolver import Resolver
 import test_http_api
+from tests.worker_diagnostics import WorkerDiagnostics
+from adapter_host.kodi.process_manager import KodiWorkerError
+from tests.worker_integration import (
+    HEALTHY_WORKER_SECONDS, BLOCKED_WORKER_SECONDS, RESOLVER_SECONDS,
+    REQUEST_SECONDS, CLIENT_SECONDS, delayed_worker_start,
+)
 
 FIXTURE = test_http_api.FIXTURE
 
@@ -35,47 +41,86 @@ class CompletionGate(Resolver):
 
 
 class HttpAvailabilityTests(unittest.TestCase):
-    def profile(self, identifier="profile_a", operation="success", enabled=True):
+    def profile(self, identifier="profile_a", operation="success", enabled=True, *, timeout=None):
         return KodiResolverProfile(
             id=identifier, name=identifier, enabled=enabled,
             addon_path=FIXTURE, addon_id="script.module." + identifier,
-            module="availability_fixture", callable=operation, worker_timeout_seconds=0.5,
+            module="availability_fixture", callable=operation,
+            worker_timeout_seconds=(timeout if timeout is not None else
+                                    BLOCKED_WORKER_SECONDS if operation == "timeout" else HEALTHY_WORKER_SECONDS),
         )
 
     def settings(self, *profiles, **kwargs):
-        return AdapterSettings(kodi_profiles=profiles, resolver_timeout_seconds=2,
-                               request_timeout_seconds=3, **kwargs)
+        return AdapterSettings(kodi_profiles=profiles, resolver_timeout_seconds=RESOLVER_SECONDS,
+                               request_timeout_seconds=REQUEST_SECONDS, **kwargs)
 
     @contextmanager
-    def host(self, settings, registry=None):
+    def host(self, settings, registry=None, *, diagnostic=False):
         registry = registry or default_registry(settings)
         server = create_server(0, registry, settings)
         thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.01}, daemon=True)
         thread.start()
-        try:
-            yield server, registry
-        finally:
-            server.shutdown()
-            server.server_close()
-            thread.join(timeout=3)
-            self.assertFalse(thread.is_alive())
+        managers = [resolver.manager for resolver in registry._resolvers.values()
+                    if getattr(resolver, "manager", None) is not None]
+        observation = (WorkerDiagnostics(managers, expected_module_errors=[
+            manager for manager in managers if manager.config.callable_name == "error"
+        ]).on_failure("http", registry=registry) if diagnostic else nullcontext())
+        with observation, ExitStack() as stack:
+            self.worker_errors = {}
+            self.worker_configs = {}
             for resolver in registry._resolvers.values():
-                manager = getattr(resolver, "manager", None)
-                if manager is not None:
+                worker = getattr(resolver, "manager", None)
+                if worker is None:
+                    continue
+                errors = self.worker_errors[resolver.id] = []
+                self.worker_configs[resolver.id] = worker.config
+                resolve = worker.resolve
+
+                async def observed(item, resolve=resolve, errors=errors):
+                    try:
+                        return await resolve(item)
+                    except KodiWorkerError as error:
+                        errors.append(str(error))
+                        raise
+
+                stack.enter_context(patch.object(worker, "resolve", observed))
+            try:
+                yield server, registry
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=3)
+                self.assertFalse(thread.is_alive())
+                for manager in managers:
                     self.assertEqual(manager.active_count, 0)
 
     def resolve(self, server, identifier="fixture:availability"):
         return test_http_api.HttpApiTests._request_server(server, "/resolve", {
             "id": identifier, "type": "movie", "title": "Availability fixture",
-        })
+        }, timeout=CLIENT_SECONDS)
+
+    def test_controlled_initialization_reproduces_false_503_and_preserves_empty_success(self):
+        for delay, budget, expected in ((0.65, 0.5, 503), (0.65, HEALTHY_WORKER_SECONDS, 200),
+                                        (1.2, HEALTHY_WORKER_SECONDS, 200)):
+            with self.subTest(delay=delay, budget=budget), delayed_worker_start(delay):
+                with self.host(self.settings(self.profile(operation="empty", timeout=budget))) as (server, registry):
+                    self.assertEqual(self.resolve(server), (expected, {"streams": []} if expected == 200 else
+                                                           {"error": "configured resolvers unavailable"}))
+                    state = registry.list_resolvers()[-1]
+                    self.assertEqual(state["status"], "ok" if expected == 200 else "resolver_error")
+                    self.assertEqual(self.worker_errors["profile_a"], [] if expected == 200 else ["worker_timeout"])
 
     def assert_success(self, response, providers):
-        status, body = response
-        self.assertEqual(status, 200, body)
-        self.assertEqual([source["providerId"] for source in body["streams"]], providers)
-        for source in body["streams"]:
-            self.assertEqual(source["type"], "https")
-            self.assertTrue(source["url"].endswith(".mp4"))
+        expected = []
+        positions = {}
+        for provider in providers:
+            config = self.worker_configs[provider]
+            position = positions.get(provider, 0)
+            positions[provider] = position + 1
+            resource = str(position) if config.callable_name == "many" else config.addon_id
+            expected.append({"providerId": provider, "type": "https",
+                             "url": f"https://example.invalid/{resource}.mp4"})
+        self.assertEqual(response, (200, {"streams": expected}))
 
     def assert_unavailable(self, response):
         self.assertEqual(response, (503, {"error": "configured resolvers unavailable"}))
@@ -107,6 +152,9 @@ class HttpAvailabilityTests(unittest.TestCase):
                     registry._resolvers["profile_b"].timeout_seconds = 0.2
                 with self.host(settings, registry) as (server, _):
                     self.assert_success(self.resolve(server), ["profile_a"])
+                    self.assertEqual(self.worker_errors["profile_b"], {
+                        "error": ["module_error"], "worker_timeout": ["worker_timeout"], "resolver_timeout": [],
+                    }[failure])
                     if failure == "resolver_timeout":
                         self.assertEqual(registry.list_resolvers()[-1]["status"], "timeout")
 
@@ -114,15 +162,17 @@ class HttpAvailabilityTests(unittest.TestCase):
         for operation in ("error", "empty"):
             with self.subTest(second=operation), self.host(self.settings(
                 self.profile(operation="empty"), self.profile("profile_b", operation),
-            )) as (server, _):
+            ), diagnostic=True) as (server, _):
                 self.assertEqual(self.resolve(server), (200, {"streams": []}))
 
     def test_all_enabled_profiles_fail(self):
         for operations in (("timeout", "error"), ("error", "error"), ("timeout", "timeout")):
             with self.subTest(failures=operations), self.host(self.settings(
                 self.profile(operation=operations[0]), self.profile("profile_b", operations[1]),
-            )) as (server, _):
+            )) as (server, registry):
                 self.assert_unavailable(self.resolve(server))
+                self.assertEqual([self.worker_errors[name] for name in ("profile_a", "profile_b")],
+                                 [["worker_timeout" if op == "timeout" else "module_error"] for op in operations])
 
     def test_example_success_does_not_conceal_configured_failure(self):
         with self.host(self.settings(
@@ -175,7 +225,7 @@ class HttpAvailabilityTests(unittest.TestCase):
         # then require exactly one copy of each source in the public response.
         with self.host(self.settings(
             self.profile(operation="many"), self.profile("profile_b", "many"),
-        )) as (server, registry):
+        ), diagnostic=True) as (server, registry):
             status, body = self.resolve(server)
             self.assertEqual(status, 200)
             self.assertEqual(body["streams"], [
@@ -189,7 +239,7 @@ class HttpAvailabilityTests(unittest.TestCase):
     def test_global_bound_applies_to_combined_real_worker_results(self):
         with self.host(self.settings(
             self.profile(), self.profile("profile_b"), max_total_results=1,
-        )) as (server, registry):
+        ), diagnostic=True) as (server, registry):
             self.assert_success(self.resolve(server), ["profile_a"])
             self.assertEqual([state["resultCount"] for state in registry.list_resolvers()[1:]], [1, 1])
 
@@ -210,9 +260,9 @@ class HttpAvailabilityTests(unittest.TestCase):
                 with self.host(settings, registry) as (server, _), ThreadPoolExecutor(max_workers=2) as pool:
                     try:
                         first_response = pool.submit(self.resolve, server, first)
-                        self.assertTrue(gate.entered[first].wait(1.5))
+                        self.assertTrue(gate.entered[first].wait(RESOLVER_SECONDS))
                         second_response = pool.submit(self.resolve, server, second)
-                        self.assertTrue(gate.entered[second].wait(1.5))
+                        self.assertTrue(gate.entered[second].wait(RESOLVER_SECONDS))
                         # Both requests remain in flight. Shared diagnostics now
                         # describe only the second request's contradictory outcome.
                         state = next(state for state in registry.list_resolvers() if state["id"] == "profile_a")
@@ -239,7 +289,9 @@ class HttpAvailabilityTests(unittest.TestCase):
             "PYTHON_ADAPTER_KODI_ADDON_PATH": str(FIXTURE),
             "PYTHON_ADAPTER_KODI_MODULE": "availability_fixture",
             "PYTHON_ADAPTER_KODI_CALLABLE": "by_request",
-            "PYTHON_ADAPTER_KODI_WORKER_TIMEOUT_SECONDS": "0.5",
+            "PYTHON_ADAPTER_KODI_WORKER_TIMEOUT_SECONDS": str(HEALTHY_WORKER_SECONDS),
+            "PYTHON_ADAPTER_RESOLVER_TIMEOUT_SECONDS": str(RESOLVER_SECONDS),
+            "PYTHON_ADAPTER_REQUEST_TIMEOUT_SECONDS": str(REQUEST_SECONDS),
         }, clear=True):
             settings = AdapterSettings.from_environment()
         with self.host(settings) as (server, _):

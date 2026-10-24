@@ -56,12 +56,29 @@ function safeSize(value: string | null): number | undefined {
   return Number.isSafeInteger(size) && size >= 0 ? size : undefined;
 }
 
-function parseInitialRange(value: string | null): number | undefined {
+function parseInitialRange(value: string | null): { end: number; total: number } | undefined {
   const match = /^bytes\s+0-(\d+)\/(\d+)$/i.exec(value?.trim() ?? "");
   const end = match?.[1] ? safeSize(match[1]) : undefined;
   const total = match?.[2] ? safeSize(match[2]) : undefined;
   return end !== undefined && end <= INITIAL_RANGE_END && total !== undefined && total > end
-    ? total : undefined;
+    ? { end, total } : undefined;
+}
+
+/** Qualify size only; preserve existing availability/admission and network work. */
+function initialRangeSizeEvidence(headers: Headers, prefix: Uint8Array): boolean {
+  const range = parseInitialRange(headers.get("content-range"));
+  if (!range) return false;
+  const intervalBytes = range.end + 1;
+  const length = headers.get("content-length");
+  const encoding = headers.get("content-encoding");
+  // The reader deliberately caps inspection at 64 bytes and cancels the body.
+  // Require the inspected prefix, never an entire larger announced interval.
+  // Smaller intervals must fit exactly; no claim about the rest of the file.
+  return (length === null || safeSize(length) === intervalBytes)
+    && (encoding === null || encoding.trim().toLowerCase() === "identity")
+    && prefix.length === Math.min(intervalBytes, INITIAL_PREFIX_BYTES)
+    && !new TextDecoder().decode(prefix).trimStart().startsWith("#EXTM3U")
+    && !normalizedContentType(headers)?.startsWith("multipart/");
 }
 
 function exactRange(value: string | null, start: number, end: number, total: number): boolean {
@@ -524,6 +541,10 @@ export class DirectStreamProbe {
         }, controller.signal);
       }
       ({ response, effectiveUrl } = outbound);
+      // The transport returns at headers, including redirects and any root GET
+      // fallback above. Capture before body/MP4/HLS work; this is not body TTFB.
+      const elapsed = this.now() - started;
+      const headerLatency = Number.isFinite(elapsed) && elapsed >= 0 ? { responseHeaderLatencyMs: elapsed } : {};
       effectiveResourceUrl = effectiveUrl;
       const resourceIdentity = response.ok ? resourceIdentityFromUrl(effectiveUrl) : undefined;
       if (resourceIdentity) resourceIdentities = [resourceIdentity];
@@ -540,7 +561,7 @@ export class DirectStreamProbe {
             );
             metadata = {
               status: "verified", verified: true, rangeSupported: false, responseStatus: 200, hls: true,
-              firstByteLatencyMs: Math.max(0, this.now() - started), ...common,
+              ...headerLatency, ...common,
               ...(observedSizeBytes !== undefined ? { observedSizeBytes } : {}),
               ...observation,
               ...(observation.actualRuntimeSeconds !== undefined ? { runtimeEvidence: "hls_vod" as const } : {})
@@ -560,7 +581,7 @@ export class DirectStreamProbe {
             ...(format ? { documentFormat: format } : {}) };
         }
       } else if (response.status === 206 && !hls) {
-        const observedSizeBytes = parseInitialRange(response.headers.get("content-range"));
+        const observedSizeBytes = parseInitialRange(response.headers.get("content-range"))?.total;
         if (observedSizeBytes === undefined || !response.body) {
           await response.body?.cancel();
           metadata = { status: "reachable", verified: false, rangeSupported: false, responseStatus: 206, ...common };
@@ -590,7 +611,9 @@ export class DirectStreamProbe {
               // Unsupported or unavailable metadata cannot contradict identity.
             }
             metadata = { status: "verified", verified: true, rangeSupported: true, responseStatus: 206,
-              firstByteLatencyMs: Math.max(0, this.now() - started), ...common, observedSizeBytes,
+              ...headerLatency, ...common, observedSizeBytes,
+              ...(initialRangeSizeEvidence(response.headers, prefix)
+                ? { sizeEvidence: "initial_range_206" as const } : {}),
               ...(actualRuntimeSeconds !== undefined
                 ? { actualRuntimeSeconds, runtimeEvidence: "mp4_mvhd" as const } : {}) };
           }
@@ -635,7 +658,7 @@ export class DirectStreamProbe {
     this.log.info("Direct HTTP probe completed", {
       status: metadata.status,
       rangeSupported: metadata.rangeSupported,
-      ...(metadata.firstByteLatencyMs !== undefined ? { firstByteLatencyMs: metadata.firstByteLatencyMs } : {})
+      ...(metadata.responseHeaderLatencyMs !== undefined ? { responseHeaderLatencyMs: metadata.responseHeaderLatencyMs } : {})
     });
     return metadata;
   }

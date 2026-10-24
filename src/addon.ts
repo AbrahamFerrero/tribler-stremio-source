@@ -7,7 +7,8 @@ import { safeErrorDetails, type Logger } from "./logger";
 import type { MovieMetadataLookup } from "./metadata/movie-metadata";
 import type { PlaybackManager } from "./playback/manager";
 import { parseStreamId } from "./source";
-import { publicStreamFilename, safeStreamDescription, streamSummary } from "./streams/presentation";
+import { publicStreamFilename, rankedStreamDescription, safeStreamDescription, streamSummary } from "./streams/presentation";
+import type { StreamRankingPolicy } from "./streams/ranking-policy";
 import { isImdbMovieId } from "./streams/media-id-mapper";
 import { parseStremioEpisodeIdentity } from "./streams/stremio-episode-identity";
 import type { StreamResolver } from "./streams/resolver";
@@ -77,7 +78,8 @@ export function createAddon(
   legalTestMagnet?: string,
   resolver?: StreamResolver,
   playback?: PlaybackManager,
-  movieMetadata?: MovieMetadataLookup
+  movieMetadata?: MovieMetadataLookup,
+  presentation?: { rankingDetails?: boolean; rankingPolicy: StreamRankingPolicy }
 ) {
   const catalogs = Array.isArray(catalogInput) ? catalogInput : [catalogInput];
   const catalogManifest = catalogs.map((catalog) => ({
@@ -169,9 +171,11 @@ export function createAddon(
         }
         const resolvedSources = await resolver.resolve(item);
         if (resolvedSources.length > 0) {
-          const streams = resolvedSources.map((source) => {
+          const streams = resolvedSources.map((source, index) => {
             const token = playback.register(source);
-            const description = safeStreamDescription(source);
+            const description = presentation?.rankingDetails
+              ? rankedStreamDescription(source, index + 1, presentation.rankingPolicy)
+              : safeStreamDescription(source);
             return {
               url: `${publicBaseUrl}/source/${token}/${publicStreamFilename(source)}`,
               name: streamSummary(source),

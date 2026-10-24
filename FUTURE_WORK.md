@@ -152,3 +152,19 @@ See [provider evaluation](docs/provider-quality-evaluation.md) for the separate
 synthetic funnel and [existing smoke bounds](docs/qa/identity/IDENTITY_LIVE_SMOKE.md)
 for diagnostic evidence limits. D2b worker timings are not normal `external_http`
 request latency.
+
+## v1.4 candidate decisions pending
+
+v1.4.0 is a local source candidate continuing the published v1.3.0 history.
+Final Identity ranking, opt-in F details, validated metadata/seeds and corrected
+size/header-latency semantics are implemented; the public transformed tree
+still requires candidate QA. Historical US-1403 technical closure and Windows
+Quality 4/4 PASS do not certify that tree. Earlier intermittent failures retain
+an undetermined environmental cause. See the [QA summary](docs/qa/v1.4-release-qa.md).
+
+Identity STRICT is pending and PR6 remains open; R-020 remains open.
+The v1.3 risk decisions recorded above keep their historical scope. In
+particular, the changed lockfile and coverage consumer require an explicit
+v1.4 tooling-risk decision or a verified correction before publication. No
+dependency update or new risk acceptance is made in this preparation. See the
+[proposal](docs/dependency-security-review.md#v14-source-candidate-risk-proposal--2026-10-24).

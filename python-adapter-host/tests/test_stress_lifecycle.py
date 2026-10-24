@@ -1,6 +1,9 @@
 import unittest
 import os
 import asyncio
+from contextlib import redirect_stderr
+import io
+import json
 from unittest.mock import patch
 
 from tests.stress_harness import run_stress
@@ -9,9 +12,81 @@ from tests.host_failure_probe import probe
 from adapter_host.kodi.process_manager import KodiWorkerError
 from adapter_host.models import MediaItem
 from adapter_host.registry import ResolverRegistry
+from tests.worker_integration import HEALTHY_WORKER_SECONDS, delayed_worker_start
+
+
+def diagnostic_records(output):
+    prefix = "PYTHON_WORKER_DIAGNOSTIC "
+    return [line[len(prefix):] for line in output.getvalue().splitlines() if line.startswith(prefix)]
 
 
 class StressLifecycleTests(unittest.IsolatedAsyncioTestCase):
+    async def test_cancellation_during_real_pipe_connection_reaps_transport(self):
+        from asyncio.base_subprocess import BaseSubprocessTransport
+
+        original = BaseSubprocessTransport._connect_pipes
+        connected, release = asyncio.Event(), asyncio.Event()
+        transports = []
+        pending_before = asyncio.all_tasks()
+
+        async def hold_connection(transport, waiter):
+            # CPython owns the live process until create_subprocess_exec returns.
+            # Connect real pipes, but withhold its completion notification.
+            transports.append(transport)
+            ready = asyncio.get_running_loop().create_future()
+            await original(transport, ready)
+            await ready
+            connected.set()
+            await release.wait()
+            if not waiter.done():
+                waiter.set_result(None)
+
+        worker = manager()
+        with patch.object(BaseSubprocessTransport, "_connect_pipes", hold_connection):
+            task = asyncio.create_task(worker.resolve(media("fixture:block")))
+            try:
+                await asyncio.wait_for(connected.wait(), 3)
+                self.assertEqual(worker.active_count, 0)
+                task.cancel()
+                release.set()
+                with self.assertRaises(asyncio.CancelledError):
+                    await asyncio.wait_for(task, 3)
+                self.assertTrue(transports)
+                self.assertTrue(all(transport.get_returncode() is not None for transport in transports))
+                self.assertEqual(worker.completed_pids, [])  # No stale PID lookup by manager.
+            finally:
+                release.set()
+                if not task.done():
+                    task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+                for transport in transports:
+                    transport.close()
+                    await transport._wait()
+        await asyncio.sleep(0)
+        self.assertEqual(asyncio.all_tasks() - pending_before, set())
+
+    async def test_controlled_startup_reproduces_recovery_timeout_then_recovers(self):
+        # Same real registry/process/IPC path, same latency, only the healthy
+        # budget changes. The short budget still belongs to blocked controls.
+        for budget in (1, HEALTHY_WORKER_SECONDS):
+            output = io.StringIO()
+            with self.subTest(budget=budget), delayed_worker_start(1.2), redirect_stderr(output):
+                if budget == 1:
+                    with self.assertRaisesRegex(AssertionError, "healthy recovery lost worker sources"):
+                        await run_stress(6, healthy_timeout=budget)
+                    records = diagnostic_records(output)
+                    self.assertEqual(len(records), 1)
+                    diagnostic = json.loads(records[0])
+                    codes = [event["code"] for event in diagnostic["events"]
+                             if event["event"] == "operation_error" and event["request"] == 1]
+                    self.assertIn("worker_timeout", codes)
+                    self.assertNotIn("module_error", codes)
+                    self.assertEqual(diagnostic["created"], diagnostic["completed"])
+                else:
+                    result = await run_stress(6, healthy_timeout=budget)
+                    self.assertEqual(result["cycles"], 6)
+                    self.assertEqual(result["activeAtEnd"], 0)
+
     @unittest.skipUnless(os.name == "nt", "Windows PID ownership regression")
     async def test_worker_exit_before_assignment_does_not_look_up_stale_pid(self):
         create_process = asyncio.create_subprocess_exec
@@ -49,13 +124,23 @@ class StressLifecycleTests(unittest.IsolatedAsyncioTestCase):
             return await original_resolve(registry, MediaItem("fixture:block", "movie", "Synthetic"))
 
         try:
+            diagnostic_output = io.StringIO()
             with patch.object(ResolverRegistry, "resolve_all", fail_one_lane), patch(
-                    "asyncio.create_subprocess_exec", observe_create):
+                    "asyncio.create_subprocess_exec", observe_create), redirect_stderr(diagnostic_output):
+                diagnostic_output.write("Synthetic stderr before diagnostic\n")
                 with self.assertRaisesRegex(RuntimeError, "Synthetic harness failure"):
                     await run_stress(10)
+                diagnostic_output.write("Synthetic stderr after diagnostic\n")
                 unfinished_lanes = [task for task in asyncio.all_tasks() - previous_tasks
                                     if "run_stress.<locals>.lane" in task.get_coro().__qualname__]
                 self.assertEqual(unfinished_lanes, [], "failed harness left a request lane running")
+            records = diagnostic_records(diagnostic_output)
+            self.assertEqual(len(records), 1, "expected exactly one worker diagnostic record")
+            diagnostic = json.loads(records[0])
+            self.assertEqual(diagnostic["kind"], "concurrency")
+            self.assertEqual(diagnostic["limit"], 4)
+            self.assertGreater(diagnostic["created"], 0)
+            self.assertNotIn("Synthetic harness failure", diagnostic_output.getvalue())
         finally:
             unfinished = asyncio.all_tasks() - previous_tasks
             for task in unfinished:

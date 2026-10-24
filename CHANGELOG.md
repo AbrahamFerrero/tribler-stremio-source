@@ -1,4 +1,29 @@
-﻿# Changelog
+# Changelog
+
+## [1.4.0] - Unreleased
+
+Local public-source candidate based on the published v1.3.0 history. Candidate
+hosted private CI and publication approval are pending. The owner conditionally
+accepted the tooling risk on 2026-10-24. Historical
+private PASS results do not certify this transformed tree.
+
+### Added
+
+- Final bridge-owned Identity ranking and configurable final per-provider quota (default 50, range 1–100).
+- Opt-in two-line F ranking details using the effective JSON policy; default remains off.
+- Synthetic ranking, cross-language metadata, size, timing and process regressions.
+
+### Changed
+
+- Validate original language/audio claims and nonnegative safe-integer seeds before awarding existing points.
+- Use field-local resolution/codec claims, qualified effective size and response-header latency consistently in scoring and presentation.
+- Run complete non-system V8 coverage and mandatory uninstrumented system tests separately; retain bounded Windows test harness diagnostics.
+- Carry the audited v1.4 source lockfile, including body-parser 1.20.9; preparation adds no dependency resolution changes.
+
+See [v1.4.0 notes](docs/releases/v1.4.0.md) for behavior and limitations and the
+[QA summary](docs/qa/v1.4-release-qa.md) for retained failures and pending checks.
+The embedded tooling vulnerability remains open; see the
+[conditional risk acceptance](docs/dependency-security-review.md#v14-source-candidate-risk-acceptance--2026-10-24).
 
 ## [1.3.0] - 2026-10-20
 

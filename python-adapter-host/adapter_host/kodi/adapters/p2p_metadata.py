@@ -12,6 +12,7 @@ from typing import Any, Iterator
 from urllib.parse import urlsplit
 
 from ..adapter_config import WORKER_PROFILE_CONFIG_ENV, decode_adapter_config
+from ...normalization import decorative_metadata_text
 
 _HASH = re.compile(r"^[0-9a-fA-F]{40}$|^[0-9a-fA-F]{64}$")
 _IMDB_ID = re.compile(r"^tt\d{7,10}$", re.IGNORECASE)
@@ -320,7 +321,9 @@ def _final_candidate(raw: object, provider_name: str, media: Mapping[str, Any]) 
     _copy_text(candidate, "title", raw.get("name"), 300)
     _copy_text(candidate, "filename", raw.get("filename"), 1_024)
     _copy_text(candidate, "quality", raw.get("quality"), 64)
-    _copy_text(candidate, "language", raw.get("language"), 64)
+    language = decorative_metadata_text(raw.get("language"), 64)
+    if language:
+        candidate["language"] = language
     quality = candidate.get("quality")
     if isinstance(quality, str):
         match = _RESOLUTION.search(quality)

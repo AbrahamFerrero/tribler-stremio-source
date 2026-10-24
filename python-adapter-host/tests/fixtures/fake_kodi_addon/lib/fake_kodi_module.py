@@ -11,6 +11,11 @@ import xbmcvfs
 
 def resolve(media):
     mode = media["id"]
+    if mode == "fixture:ready-block":
+        with xbmcvfs.File("special://profile/addon_data/script.module.fake/ready", "w") as ready:
+            ready.write("ready")
+        while True:
+            time.sleep(1)
     if mode == "fixture:exception":
         raise RuntimeError("fixture secret traceback must not escape")
     if mode in {"fixture:block", "fixture:ignore-cancellation"}:

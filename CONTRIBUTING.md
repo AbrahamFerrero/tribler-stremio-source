@@ -1,8 +1,8 @@
 # Contributing and redistribution
 
-This personal, independent multimedia engineering project is prepared for its
-first public source release under [PolyForm Noncommercial 1.0.0](LICENSE), SPDX
-`PolyForm-Noncommercial-1.0.0`. Publication is pending. Engineering direction and
+This personal, independent multimedia engineering project has a published
+v1.3.0 source release under [PolyForm Noncommercial 1.0.0](LICENSE), SPDX
+`PolyForm-Noncommercial-1.0.0`. The v1.4.0 candidate is unreleased. Engineering direction and
 QA are by Abraham Ferrero, with AI-assisted development. The project is intended
 for experimentation and household use and is not officially affiliated with
 Stremio or Tribler. It is source-available, not OSI open source.
@@ -46,3 +46,10 @@ guarantees, or run live provider/playback campaigns as part of routine checks.
 Earlier private snapshots carried MIT notices. This first-public-release license
 choice does not rewrite those records or purport to revoke grants for earlier
 copies. Third-party work retains its own terms throughout.
+
+For v1.4, production coverage and uninstrumented system tests are separate
+mandatory gates. Use only reviewed/trusted configuration, ASTs and source maps
+with development tooling, in isolated environments with bounded execution.
+Keep coverage threshold auto-update disabled. The historical v1.3 tooling-risk
+acceptance does not approve this v1.4 candidate; see the
+[dependency review](docs/dependency-security-review.md).

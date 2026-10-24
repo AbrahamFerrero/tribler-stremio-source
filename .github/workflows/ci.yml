@@ -33,6 +33,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install Node.js dependencies
+        id: node_dependencies
         run: npm ci
 
       - name: Check repository safety
@@ -47,13 +48,15 @@ jobs:
       - name: Run Node.js tests
         run: npm run test:all
 
-      - name: Measure Node.js coverage
+      - name: Measure production coverage (all non-system tests)
+        if: ${{ !cancelled() && steps.node_dependencies.outcome == 'success' }}
         run: npm run coverage
 
       - name: Run system acceptance tests
         run: npm run test:acceptance
 
-      - name: Run process-level system tests
+      - name: Run mandatory process-level system tests (without V8)
+        if: ${{ !cancelled() && steps.node_dependencies.outcome == 'success' }}
         run: npm run test:system
 
       - name: Build
@@ -74,6 +77,24 @@ jobs:
         run: |
           python -m coverage run --branch -m unittest discover -s tests -v
           python -m coverage report --include=adapter_host/*
+
+  windows-launcher-diagnostic:
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.11"
+
+      # These five tests and the host use only the Python standard library.
+      - name: Diagnose Windows launcher phases
+        working-directory: python-adapter-host
+        run: python -m unittest discover -s tests -p test_host_environment.py -v
 
   windows-quality:
     runs-on: windows-latest
@@ -97,6 +118,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install Node.js dependencies
+        id: node_dependencies
         run: npm ci
 
       - name: Type-check and build
@@ -110,11 +132,14 @@ jobs:
           npm run test:all
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           npm run test:acceptance
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          npm run test:system
 
-      - name: Measure Node.js coverage
+      - name: Measure production coverage (all non-system tests)
+        if: ${{ !cancelled() && steps.node_dependencies.outcome == 'success' }}
         run: npm run coverage
+
+      - name: Run mandatory process-level system tests (without V8)
+        if: ${{ !cancelled() && steps.node_dependencies.outcome == 'success' }}
+        run: npm run test:system
 
       - name: Install Python development tools
         id: python_tools

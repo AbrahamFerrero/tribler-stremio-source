@@ -1,56 +1,10 @@
-import { streamHeight } from "./details";
+import { effectiveStreamSize, streamHeight } from "./details";
 import { getBridgeIdentityState } from "./resolver";
 import type { NormalizedStreamSource } from "./types";
+import type { StreamRankingPolicy } from "./ranking-policy";
+import { scoreStream, streamScoreComponents } from "./scoring";
 
-// Values are presentation literals, never provider substrings. Language claims
-// describe upstream labels; they do not verify the media's tracks.
-const languages: Readonly<Record<string, string>> = {
-  en: "English", eng: "English", english: "English",
-  es: "Spanish", spa: "Spanish", spanish: "Spanish",
-  fr: "French", fra: "French", french: "French",
-  de: "German", deu: "German", german: "German",
-  it: "Italian", ita: "Italian", italian: "Italian",
-  pt: "Portuguese", por: "Portuguese", portuguese: "Portuguese",
-  ja: "Japanese", jpn: "Japanese", japanese: "Japanese",
-  ko: "Korean", kor: "Korean", korean: "Korean",
-  zh: "Chinese", zho: "Chinese", chinese: "Chinese",
-  ru: "Russian", rus: "Russian", russian: "Russian",
-  hi: "Hindi", hin: "Hindi", hindi: "Hindi",
-  hu: "Hungarian", hun: "Hungarian", hungarian: "Hungarian"
-};
-
-function descriptionText(value: string | undefined): string | undefined {
-  // Fail closed on oversized fields, markup and controls, including newlines.
-  if (!value || value.length > 500 || /[\p{Cc}\p{Cf}<>]/u.test(value)
-    || /[^\x20-\x7e·]/u.test(value)) return undefined;
-  return value.trim().toLowerCase();
-}
-
-function descriptionLanguage(value: string | undefined): string | undefined {
-  return value && Object.hasOwn(languages, value) ? languages[value] : undefined;
-}
-
-function explicitLanguage(value: string, kind: "audio" | "subtitles"): string | undefined {
-  const label = kind === "subtitles" ? "(?:subtitles|subs)" : kind;
-  const match = new RegExp(`^(?:${label}: ([a-z]+)|([a-z]+) ${label})$`).exec(value);
-  return descriptionLanguage(match?.[1] ?? match?.[2]);
-}
-
-function descriptionAudioMode(value: string, allowBare = false): string | undefined {
-  const match = /^(dual|multi)(?: +audio)?$/.exec(value);
-  if (!match || (!allowBare && value === match[1])) return undefined;
-  return match[1] === "dual" ? "Dual audio" : "Multi audio";
-}
-
-/** Only the dedicated audio field accepts a whole pair of distinct known codes. */
-function structuredAudioLanguage(value: string | undefined): string | undefined {
-  const single = descriptionLanguage(value);
-  if (single || !value) return single;
-  const match = /^([a-z]{2,3}) *[/+,] *([a-z]{2,3})$/.exec(value);
-  const first = descriptionLanguage(match?.[1]);
-  const second = descriptionLanguage(match?.[2]);
-  return first && second && first !== second ? `${first}/${second}` : undefined;
-}
+import { descriptionText, explicitLanguage, descriptionAudioMode, structuredAudioLanguage } from "./structured-metadata";
 
 /** At most three closed labels (53 characters); no locators or metadata. */
 export function safeStreamDescription(source: NormalizedStreamSource): string | undefined {
@@ -93,10 +47,41 @@ export function safeStreamDescription(source: NormalizedStreamSource): string | 
   return bounded.length ? bounded.join(" · ") : undefined;
 }
 
+/** Two decimal places at most; normalize negative zero and omit trailing zeros. */
+function scoreLabel(value: number): string {
+  return String(Number(value.toFixed(2)));
+}
+
+/** Bridge-calculated detail only; policy must be the resolver's effective policy.
+ * Each number is independently rounded to 0.01. The displayed component sum
+ * differs from the displayed total by at most 0.035 points (six rounding errors
+ * plus the total's). Ranking always uses the unrounded score.
+ */
+export function rankedStreamDescription(
+  source: NormalizedStreamSource, position: number, policy: StreamRankingPolicy
+): string | undefined {
+  const languages = safeStreamDescription(source);
+  const components = streamScoreComponents(source, policy);
+  const total = scoreStream(source, policy);
+  const detail = [
+    ["Avail", components.availability], ["Res", components.resolution],
+    ["Size", components.size], ["Codec", components.codec],
+    ["Meta", components.metadata], ["Net", components.transport]
+  ] satisfies Array<[string, number]>;
+  if (!Number.isSafeInteger(position) || position < 1 || !Number.isFinite(total)
+    || !detail.every(([, value]) => Number.isFinite(value))) return languages;
+  const parts = detail.map(([label, value]) => {
+    const number = scoreLabel(value);
+    return `${label} ${Number(number) >= 0 ? "+" : ""}${number}`;
+  }).join(" · ");
+  const score = `#${position} · Score ${scoreLabel(total)}`;
+  return languages ? `${languages}\n${score} · ${parts}` : `${score}\n${parts}`;
+}
+
 function sizeLabel(sizeBytes: number | undefined): string | undefined {
-  if (sizeBytes === undefined || !Number.isFinite(sizeBytes) || sizeBytes > Number.MAX_SAFE_INTEGER || sizeBytes <= 0) return undefined;
-  if (sizeBytes >= 1024 ** 3) return `${(sizeBytes / 1024 ** 3).toFixed(1)}GB`;
-  if (sizeBytes >= 1024 ** 2) return `${Math.round(sizeBytes / 1024 ** 2)}MB`;
+  if (sizeBytes === undefined) return undefined;
+  if (sizeBytes >= 1024 ** 3) return `${(sizeBytes / 1024 ** 3).toFixed(1)}GiB`;
+  if (sizeBytes >= 1024 ** 2) return `${Math.round(sizeBytes / 1024 ** 2)}MiB`;
   return undefined;
 }
 
@@ -111,9 +96,9 @@ export function streamSummary(source: NormalizedStreamSource): string {
     direct ? source.type.toUpperCase() + (probe?.verified ? "✓" : "") : "Tribler",
     identity,
     height > 0 ? `${height}p` : undefined,
-    sizeLabel(source.sizeBytes ?? probe?.observedSizeBytes),
-    probe?.firstByteLatencyMs !== undefined && Number.isFinite(probe.firstByteLatencyMs) && probe.firstByteLatencyMs >= 0
-      ? `${(probe.firstByteLatencyMs / 1000).toFixed(1)}s` : undefined,
+    sizeLabel(effectiveStreamSize(source)),
+    probe?.responseHeaderLatencyMs !== undefined && Number.isFinite(probe.responseHeaderLatencyMs) && probe.responseHeaderLatencyMs >= 0
+      ? `${(probe.responseHeaderLatencyMs / 1000).toFixed(1)}s` : undefined,
     direct || source.seeds === undefined || !Number.isSafeInteger(source.seeds) || source.seeds < 0
       ? undefined : `${source.seeds} ${source.seeds === 1 ? "seed" : "seeds"}`
   ].filter((part): part is string => Boolean(part));

@@ -60,7 +60,9 @@ describe("opt-in identity smoke offline observations", () => {
   it("observes the real factory's empty external HTTP result used by the review CLI", async () => {
     const upstream = new DirtyUpstream();
     await upstream.listen();
-    const endpoint = upstream.media("/media/resolve", { contentType: "application/json", body: '{"streams":[]}' });
+    let requestObserved = false;
+    const endpoint = upstream.media("/media/resolve", { contentType: "application/json", body: '{"streams":[]}',
+      observeHeaders: () => { requestObserved = true; } });
     const config = { ...testConfig(), streamProviders: ["external_http"], externalStreamProviderEnabled: true,
       externalStreamProviderUrl: endpoint + "?token=FAKE_PRIVATE_ENDPOINT" };
     const policy = createUrlPolicy(config);
@@ -71,7 +73,14 @@ describe("opt-in identity smoke offline observations", () => {
       const resolver = createStreamResolver([], config, silentLogger, policy, transport, undefined, diagnostic.trace);
       await resolver.resolve(movie);
       const report = diagnostic.report(resolver.directProbeDiagnostics(), 0, resolver.diagnostics());
-      expect(report.providers).toMatchObject({ selected: 1, calls: 1, noResults: 1, errors: 0 });
+      // Whitelist scalar fixture evidence only: no URLs, headers, labels or raw errors.
+      const evidence = JSON.stringify({ requestObserved, requests: upstream.count("/media/resolve"),
+        effectiveTimeoutMs: config.externalStreamProviderTimeoutMs,
+        states: resolver.diagnostics().filter(row => row.enabled).map(row => ({ status: row.status,
+          latencyMs: row.latencyMs, cancelledOrTimedOut: row.lastError === "Provider timed out or was cancelled" })),
+        timeouts: report.providers.timeouts, pending: report.pendingProviderOutcomes });
+      expect(evidence).not.toContain("FAKE_PRIVATE");
+      expect(report.providers, evidence).toMatchObject({ selected: 1, calls: 1, noResults: 1, errors: 0, timeouts: 0 });
       expect(report.observations).toContain("NO_RAW_SOURCES");
       expect(formatIdentityDiagnostics(report)).not.toContain("FAKE_PRIVATE");
       expect(upstream.count("/media/resolve")).toBe(1);

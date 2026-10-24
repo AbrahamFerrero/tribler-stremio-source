@@ -18,6 +18,7 @@ from adapter_host.registry import ResolverRegistry
 from adapter_host.resolver import Resolver
 from adapter_host.kodi.process_manager import KodiWorkerConfig, KodiWorkerProcessManager
 from adapter_host.kodi_installed_resolver import KodiInstalledResolver
+from tests.worker_integration import HEALTHY_WORKER_SECONDS, RESOLVER_SECONDS, REQUEST_SECONDS, CLIENT_SECONDS
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "fake_kodi_addon"
@@ -292,15 +293,15 @@ class HttpApiTests(unittest.TestCase):
             module_name="missing_fixture_module",
             addon_id="script.module.fake",
             settings_file=FIXTURE / "settings.example.json",
-            timeout_seconds=1,
+            timeout_seconds=HEALTHY_WORKER_SECONDS,
         ))
-        registry = ResolverRegistry(default_timeout_seconds=2)
+        registry = ResolverRegistry(default_timeout_seconds=RESOLVER_SECONDS)
         registry.register(KodiInstalledResolver(manager))
-        settings = AdapterSettings(resolver_timeout_seconds=2, request_timeout_seconds=3, kodi_profiles=(
+        settings = AdapterSettings(resolver_timeout_seconds=RESOLVER_SECONDS, request_timeout_seconds=REQUEST_SECONDS, kodi_profiles=(
             KodiResolverProfile(
                 id="kodi_installed", name="Broken configured profile", enabled=True,
                 addon_path=FIXTURE, addon_id="script.module.fake", module="missing_fixture_module",
-                callable="resolve", worker_timeout_seconds=1,
+                callable="resolve", worker_timeout_seconds=HEALTHY_WORKER_SECONDS,
             ),
         ))
         server = create_server(0, registry, settings)
@@ -313,7 +314,7 @@ class HttpApiTests(unittest.TestCase):
                 headers={"Content-Type": "application/json"},
             )
             with self.assertRaises(HTTPError) as caught:
-                urlopen(request, timeout=2)
+                urlopen(request, timeout=CLIENT_SECONDS)
             self.assertEqual(caught.exception.code, 503)
             self.assertEqual(json.load(caught.exception)["error"], "configured resolvers unavailable")
             status, body = self._request_server(server, "/resolvers")
@@ -325,13 +326,13 @@ class HttpApiTests(unittest.TestCase):
             thread.join(timeout=2)
 
     @staticmethod
-    def _request_server(server: object, path: str, payload: object | None = None) -> tuple[int, dict[str, object]]:
+    def _request_server(server: object, path: str, payload: object | None = None, *, timeout=CLIENT_SECONDS) -> tuple[int, dict[str, object]]:
         port = getattr(server, "server_address")[1]
         data = None if payload is None else json.dumps(payload).encode()
         request = Request(f"http://127.0.0.1:{port}{path}", data=data,
                           headers={"Content-Type": "application/json"} if data else {})
         try:
-            with urlopen(request, timeout=2) as response:
+            with urlopen(request, timeout=timeout) as response:
                 return response.status, json.load(response)
         except HTTPError as error:
             return error.code, json.load(error)

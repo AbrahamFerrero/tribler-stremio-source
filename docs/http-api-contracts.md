@@ -60,6 +60,35 @@ end before parsing, provider/Tribler calls, playback preparation or mutations. L
 can forge these headers; the native branch is compatibility policy rather than cryptographic
 authentication. See [security limits](../SECURITY.md).
 
+## v1.4 stream array order
+
+Stream discovery serializes final resolver order: bridge-owned CORROBORATED,
+then UNKNOWN and unclassified together, then SUSPICIOUS. Within each group,
+the existing technical JSON policy applies, followed by descending seeds,
+ascending size and stable input ties. Provider trust declarations do not supply
+authoritative classification; supported contradictions remain excluded upstream.
+
+`STREAM_MAX_RESULTS_PER_PROVIDER` caps final distinct results independently per
+provider after deduplication, admission, classification and ranking. It defaults
+to 50 when absent and accepts integers 1 through 100; invalid values (including
+an empty value) fail configuration explicitly. The raw safety cap remains 100
+per provider. Changing the final cap affects only the retained ranked subset,
+not scoring, probes or earlier admission stages; there is no global cap of 50.
+At or below that cap the admitted source set is preserved; above it the selected
+subset can change. Normalization, deduplication, probing, timeouts and budgets
+retain their contracts. HTTP(S), HLS and Tribler have no absolute transport
+priority. Array order is distinct from JSON object key order, which remains
+outside the portable schema contract.
+
+Public streams retain opaque localhost playback capabilities and compact
+presentation. With ranking details disabled (the default), no numeric score is added.
+`STREAM_RANKING_DETAILS=true` adds the bridge-calculated F score/components
+through the existing `title` field. Neither mode adds a new identity label, raw
+source locator, request header or internal ranking trace. Synthetic regressions are in
+`tests/stream-identity-ranking.test.ts` and
+`tests/integration/public-identity-order.test.ts`. This does not close R-020 or
+certify audiovisual identity; see the [v1.4 QA report](qa/v1.4-release-qa.md).
+
 ## Node routes
 
 `GET` routes also support bodyless `HEAD`. Playback has explicit HEAD handlers;

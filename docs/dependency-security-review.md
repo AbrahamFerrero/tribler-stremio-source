@@ -212,3 +212,83 @@ or exposed development services. Reassess dependency, consumer or configuration
 changes and any available upstream fix. At the next dependency review, verify
 the corrected published bundle or separately review tooling replacement and its
 gates before retiring this notice. No dependency correction is claimed here.
+
+## v1.4 source candidate risk acceptance — 2026-10-24
+
+**TEMPORARY CONDITIONAL OWNER ACCEPTANCE — 2026-10-24.** The owner accepted
+the open GHSA-68fv-2mgg-jv7q risk of source-map-js@1.2.1 embedded in
+magicast@0.5.5 exclusively for the audited v1.4 source candidate and its
+reviewed tooling dependencies and consumers. The owner is responsible for
+review and withdrawal. The complete v1.3 acceptance above remains historical;
+this is a separate decision for v1.4. Preparation and private CI are authorized;
+public publication is not authorized.
+This is a bounded applicability review, not a new dependency audit or exploit
+campaign. Candidate lockfile SHA-256: `130849766cae0016e4c3ba9e32bab19c82f47fe942734aaf09579059c071087d`.
+
+### Artifact exposure and changes
+
+The candidate distributes project sources and a lockfile, excluding installed
+packages, bundles and binaries. Installation nevertheless brings development
+code into the consumer's environment. magicast remains 0.5.5 with the same
+locked integrity as v1.3; the existing review verified executable embedded
+source-map-js 1.2.1. External source-map-js remains 1.2.2 with unchanged locked
+integrity. Updating that external dependency does not rewrite the bundle.
+The [advisory](https://github.com/advisories/GHSA-68fv-2mgg-jv7q) still identifies
+indexed-map offsets as an event-loop DoS risk before 1.2.2. No correction of
+the embedded copy is established here; npm audit alone cannot establish one.
+
+Relative to public v1.3, the audited source changes Vitest/coverage-v8 from
+4.1.11 to 4.1.12, Vite 8.3.0 to 8.3.3, rolldown 1.2.8 to 1.2.14 and associated
+platform bindings/types; body-parser changes 1.20.8 to 1.20.9. The local
+preparation records the complete per-entry comparison. Those are preexisting
+source changes, not new dependency upgrades during preparation. All non-root
+lockfile metadata is retained exactly from the audited source.
+
+Coverage moves to `vitest.coverage.config.mjs`, measuring all non-system tests;
+system tests remain a separate mandatory uninstrumented gate. Neither base nor
+coverage config enables thresholds.autoUpdate or supplies inputSourceMap or
+sourceMapName options. The prior bounded review identified coverage threshold
+configuration parsing as the magicast consumer, with auto-update disabled.
+The reviewed local consumer still imports parseModule for configuration
+handling; its installation is supporting evidence, not a new clean-install
+attestation of this candidate. No new application import of magicast or
+production request path was found in the selected v1.4 changes. This is an
+assessment of the inspected boundaries, not proof of universal unreachability.
+
+### Accepted conditions and residual risk
+
+Acceptance is bound to the audited candidate source inventory, the lockfile
+hash above and the documented acceptance edits. Distribute source only, with
+no node_modules, builds, bundles or binaries. Use only reviewed/trusted
+development inputs, configuration, ASTs, source maps and composition options.
+Keep autoUpdate disabled, review contributions before tooling execution, and
+use isolated, bounded development/CI environments. The three workflow jobs retain 20-minute limits. A timeout
+limits duration; it neither validates maps nor prevents synchronous DoS.
+Prior local QA applies to the pre-acceptance inventory; code and dependencies
+remain identical after these documentary edits. Hosted private CI must validate
+the final commit and record its actual results. Untrusted development input could still block a tooling process;
+absence of an identified request path does not eliminate that residual risk.
+
+### Concrete alternatives and withdrawal conditions
+
+1. Verify a corrected upstream magicast artifact that rebuilds or externalizes
+   the embedded copy, inspect its executable bundle and rerun relevant gates.
+   No currently available corrected release is asserted; no registry search
+   or dependency installation was performed in this preparation.
+2. Separately review replacing/removing the coverage consumer, with equivalent
+   production coverage and mandatory test gates. Do not merely suppress audit
+   or remove a required gate to claim remediation.
+3. If neither correction nor bounded acceptance can be supported, defer
+   publication. A reviewed temporary patch/fork would need explicit scope,
+   provenance, notices and validation; none is introduced here.
+
+The owner must review this temporary acceptance before publication and whenever
+the dependency graph, consumers, configuration, input surfaces or isolation
+change. Withdraw it on evidence of unacceptable exposure or a verified fix.
+Withdraw/reassess if untrusted maps become reachable, a production path
+is found, consumers/dependencies/configuration or map options change, input
+trust/isolation/time bounds fail, or distribution expands to packages,
+binaries, bundles or exposed development services. Review on the next
+dependency change and before publication; retire only with executable-artifact
+evidence and relevant successful checks. **The vulnerability remains open.
+This acceptance does not establish remediation or authorize public publication.**

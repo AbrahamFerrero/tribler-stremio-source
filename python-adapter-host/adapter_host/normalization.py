@@ -81,7 +81,9 @@ def normalize_one(raw: Mapping[str, Any], provider_id: str) -> StreamSource:
     for field_name, maximum in _TEXT_LIMITS.items():
         if field_name == "filename":
             continue
-        value = _optional_text(raw.get(field_name), field_name, maximum)
+        value = (decorative_metadata_text(raw.get(field_name), maximum)
+                 if field_name in {"language", "audio"}
+                 else _optional_text(raw.get(field_name), field_name, maximum))
         if value:
             result[field_name] = value  # type: ignore[literal-required]
     for field_name in ("sizeBytes", "seeds", "fileIndex"):
@@ -127,6 +129,20 @@ def has_supported_http_video_path(url: str) -> bool:
                 and parsed.path.lower().endswith(_VIDEO_EXTENSIONS))
     except ValueError:
         return False
+
+
+def decorative_metadata_text(value: object, maximum: int) -> str | None:
+    """Omit unsafe decoration, never repair a claim before Node sees it.
+
+    Validate the original before trimming ASCII spaces. Preserve bounded safe
+    opaque/subtitle text whole; Node alone recognizes languages and awards points.
+    Other source fields deliberately retain their existing normalization.
+    """
+    if (not isinstance(value, str) or len(value) > 500
+            or any((not " " <= char <= "~" and char != "\u00b7") or char in "<>" for char in value)):
+        return None
+    result = value.strip(" ")
+    return result if result and len(result) <= maximum else None
 
 
 def _optional_text(value: object, field_name: str, maximum: int) -> str | None:

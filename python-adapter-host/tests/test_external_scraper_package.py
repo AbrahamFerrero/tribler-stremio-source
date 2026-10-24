@@ -9,6 +9,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
+from tests.worker_integration import HEALTHY_WORKER_SECONDS, RESOLVER_SECONDS, REQUEST_SECONDS
+
 from adapter_host.config import AdapterSettings
 from adapter_host.kodi.process_manager import KodiWorkerConfig, KodiWorkerError, KodiWorkerProcessManager
 from adapter_host.kodi_profiles import KodiResolverProfile
@@ -35,7 +37,7 @@ class ExternalScraperWorkerTests(unittest.IsolatedAsyncioTestCase):
         settings.write_text(json.dumps({"fixture.mode": mode}), encoding="utf-8")
         manager = KodiWorkerProcessManager(KodiWorkerConfig(
             addon_path=FIXTURE, module_name=MODULE, addon_id="script.module.fake",
-            settings_file=settings, profile_path=directory / "profile", timeout_seconds=2,
+            settings_file=settings, profile_path=directory / "profile", timeout_seconds=HEALTHY_WORKER_SECONDS,
             maximum_results=maximum,
             adapter_config=config if config is not None else {"packageModule": package, "folders": ["torrents"]},
         ))
@@ -191,11 +193,11 @@ class ExternalScraperHttpTests(unittest.TestCase):
         profiles = tuple(KodiResolverProfile(
             id="profile_" + letter, name="Profile " + letter, enabled=True,
             addon_path=FIXTURE, addon_id="script.module.fake", module=MODULE,
-            callable="resolve", worker_timeout_seconds=2,
+            callable="resolve", worker_timeout_seconds=HEALTHY_WORKER_SECONDS,
             adapter_config={"packageModule": "scraper_package_" + letter, "folders": ["torrents"]},
         ) for letter in ("a", "b"))
-        return AdapterSettings(kodi_profiles=profiles, resolver_timeout_seconds=3,
-                               request_timeout_seconds=4, max_total_results=maximum)
+        return AdapterSettings(kodi_profiles=profiles, resolver_timeout_seconds=RESOLVER_SECONDS,
+                               request_timeout_seconds=REQUEST_SECONDS, max_total_results=maximum)
 
     def request(self, server, media):
         return test_http_api.HttpApiTests._request_server(server, "/resolve", media)

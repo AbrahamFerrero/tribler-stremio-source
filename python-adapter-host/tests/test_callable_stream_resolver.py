@@ -10,6 +10,8 @@ import shutil
 import unittest
 from unittest.mock import patch
 
+from tests.worker_integration import HEALTHY_WORKER_SECONDS, RESOLVER_SECONDS, REQUEST_SECONDS
+
 from adapter_host.config import AdapterSettings
 from adapter_host.kodi.adapters.callable_stream_resolver import ADAPTER_MODULE
 from adapter_host.kodi.process_manager import KodiWorkerConfig, KodiWorkerError, KodiWorkerProcessManager
@@ -27,7 +29,7 @@ URL = "https://1.1.1.1/fixture-video.mp4"
 def profile(**kwargs):
     return KodiResolverProfile(id="callable_fixture", name="Callable fixture", enabled=True,
                                addon_path=FIXTURE, addon_id="script.module.fake", module=ADAPTER_MODULE,
-                               callable="resolve", worker_timeout_seconds=2, adapter_config=CONFIG, **kwargs)
+                               callable="resolve", worker_timeout_seconds=HEALTHY_WORKER_SECONDS, adapter_config=CONFIG, **kwargs)
 
 
 class CallableWorkerTests(unittest.IsolatedAsyncioTestCase):
@@ -39,7 +41,7 @@ class CallableWorkerTests(unittest.IsolatedAsyncioTestCase):
         self.root = Path(self.temporary.name)
         self.workers = []
 
-    def manager(self, mode="", result_mode="tuple", maximum=20, timeout=2, config=None, addon_path=FIXTURE):
+    def manager(self, mode="", result_mode="tuple", maximum=20, timeout=HEALTHY_WORKER_SECONDS, config=None, addon_path=FIXTURE):
         directory = self.root / str(len(self.workers))
         directory.mkdir()
         settings = directory / "settings.json"
@@ -140,7 +142,9 @@ class CallableWorkerTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_timeout_and_cancellation_reap_real_workers(self):
         processes = self.observe_real_processes()
-        worker = self.manager("block", timeout=0.4)
+        # The callable must initialize and write its marker before deliberately
+        # blocking; a sub-startup deadline tests the wrong failure mechanism.
+        worker = self.manager("block", timeout=HEALTHY_WORKER_SECONDS)
         with self.assertRaisesRegex(KodiWorkerError, "^worker_timeout$"):
             await worker.resolve(MOVIE)
         self.assertTrue((worker.config.profile_path / "arguments.json").exists())
@@ -257,7 +261,7 @@ class CallableHttpTests(unittest.TestCase):
     def test_http_fields_metadata_ids_and_headers_cannot_select_code_or_arguments(self):
         with tempfile.TemporaryDirectory() as temporary:
             configured = profile(profile_path=Path(temporary) / "profile")
-            settings = AdapterSettings(kodi_profiles=(configured,), resolver_timeout_seconds=3, request_timeout_seconds=4)
+            settings = AdapterSettings(kodi_profiles=(configured,), resolver_timeout_seconds=RESOLVER_SECONDS, request_timeout_seconds=REQUEST_SECONDS)
             with self.host(settings) as (server, registry):
                 request = lambda payload: test_http_api.HttpApiTests._request_server(server, "/resolve", payload)
                 baseline = request(MOVIE)
@@ -275,7 +279,7 @@ class CallableHttpTests(unittest.TestCase):
                 raw = Request(f"http://127.0.0.1:{server.server_address[1]}/resolve", data=json.dumps(MOVIE).encode(),
                               headers={"Content-Type": "application/json", "Cookie": "do-not-expose",
                                        "Authorization": "do-not-expose", "X-Api-Key": "do-not-expose"})
-                with urlopen(raw, timeout=2) as response:
+                with urlopen(raw, timeout=REQUEST_SECONDS + 2) as response:
                     self.assertEqual(json.load(response), baseline[1])
                 arguments = json.loads((configured.profile_path / "arguments.json").read_text())
                 self.assertIsNone(arguments["target_providers"])

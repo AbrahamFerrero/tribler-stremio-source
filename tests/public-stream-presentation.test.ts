@@ -8,7 +8,9 @@ import { ExternalUrlPolicy } from "../src/network/url-policy";
 import { PlaybackManager } from "../src/playback/manager";
 import { TriblerPlaybackBackend } from "../src/playback/backends";
 import { StreamProviderRegistry, StreamResolver } from "../src/streams/resolver";
-import { publicStreamFilename, safeStreamDescription, streamSummary } from "../src/streams/presentation";
+import { publicStreamFilename, rankedStreamDescription, safeStreamDescription, streamSummary } from "../src/streams/presentation";
+import { defaultStreamRankingPolicy } from "../src/streams/ranking-policy";
+import { scoreStream, streamScoreComponents } from "../src/streams/scoring";
 import type { NormalizedStreamSource, StreamProvider } from "../src/streams/types";
 import { DirtyUpstream } from "./acceptance/dirty-upstream";
 import { fixturePrivacySafe, observePipeline } from "./identity-qa/harness";
@@ -25,6 +27,71 @@ const provider = (sources: NormalizedStreamSource[]): StreamProvider => ({
 });
 
 describe("public provider presentation boundary", () => {
+  it.each([
+    [{ audio: "ja", title: "English subtitles" }, "Japanese audio · English subtitles"],
+    [{ audio: "ja" }, "Japanese audio"],
+    [{ title: "English subtitles" }, "English subtitles"],
+    [{ language: "en" }, undefined],
+    [{ audio: privateText, title: privateText }, undefined]
+  ] satisfies Array<[Partial<NormalizedStreamSource>, string | undefined]>)(
+    "formats opt-in F using only available safe labels %#", (fields, labels) => {
+      const source: NormalizedStreamSource = { providerId: "fixture", type: "magnet", seeds: 31,
+        resolution: "1080p", sizeBytes: 5 * 1024 ** 3, codec: "HEVC", ...fields };
+      const metadata = (source.language === "en" ? 2 : 0) + (source.audio === "ja" ? 1 : 0);
+      const score = `#7 · Score ${162 + metadata}`;
+      const parts = `Avail +100 · Res +42 · Size +12 · Codec +8 · Meta +${metadata} · Net +0`;
+      const original = structuredClone(source);
+      const name = streamSummary(source);
+      const result = rankedStreamDescription(source, 7, defaultStreamRankingPolicy)!;
+      expect(result).toBe(labels ? `${labels}\n${score} · ${parts}` : `${score}\n${parts}`);
+      expect(result.split("\n")).toHaveLength(2);
+      expect(result).not.toMatch(/·\s*·|\n\s*\n/);
+      expect(result).not.toContain(privateText);
+      expect(streamSummary(source)).toBe(name);
+      expect(source).toEqual(original);
+    }
+  );
+
+  it("uses the supplied policy and bounds independent numeric rounding to 0.035 points", () => {
+    const policy = structuredClone(defaultStreamRankingPolicy);
+    policy.quality["1080p"] = 45;
+    policy.torrent.seedScorePerDoubling = 18;
+    for (const seeds of [undefined, 0, 2, 31]) {
+      const source: NormalizedStreamSource = { providerId: "fixture", type: "magnet", ...(seeds === undefined ? {} : { seeds }),
+        resolution: "1080p", sizeBytes: Math.round(31.234567 * 1024 ** 3), codec: "HEVC", language: "en", audio: "ja" };
+      const values = Object.values(streamScoreComponents(source, policy)) as number[];
+      const total = scoreStream(source, policy);
+      expect(values.reduce((sum, value) => sum + value, 0)).toBe(total);
+      const result = rankedStreamDescription(source, 1, policy)!;
+      const score = Number(/Score (-?\d+(?:\.\d+)?)/.exec(result)![1]);
+      const parts = [...result.matchAll(/(?:Avail|Res|Size|Codec|Meta|Net) ([+-]\d+(?:\.\d+)?)/g)].map(m => Number(m[1]));
+      expect(parts).toHaveLength(6);
+      parts.forEach((part, i) => expect(Math.abs(part - values[i]!)).toBeLessThanOrEqual(0.005 + 1e-10));
+      expect(Math.abs(score - total)).toBeLessThanOrEqual(0.005 + 1e-10);
+      expect(Math.abs(parts.reduce((sum, value) => sum + value, 0) - score)).toBeLessThanOrEqual(0.035 + 1e-10);
+      expect(result).not.toMatch(/\d+\.\d{3}|\+-|-0(?: ·|$)/);
+      expect(result).toContain("Res +45");
+      expect(result).toContain("Size -");
+      expect(result).toContain("Net +0");
+    }
+    const zero = { providerId: "fixture", type: "magnet" as const };
+    const nearZero = structuredClone(policy); nearZero.torrent.unknownSeeds = 0; nearZero.quality.unknown = 0;
+    expect(rankedStreamDescription(zero, 1, nearZero)).toBe("#1 · Score 0\nAvail +0 · Res +0 · Size +0 · Codec +0 · Meta +0 · Net +0");
+    expect(rankedStreamDescription({ ...zero, seeds: -0.0001 }, 1, policy)).not.toContain("-0");
+  });
+
+  it("fails closed on non-finite calculated values and invalid public positions", () => {
+    const source: NormalizedStreamSource = { providerId: "fixture", type: "magnet", audio: "ja" };
+    for (const position of [0, -1, 1.5, Infinity]) {
+      expect(rankedStreamDescription(source, position, defaultStreamRankingPolicy)).toBe("Japanese audio");
+    }
+    expect(rankedStreamDescription({ ...source, seeds: NaN }, 1, defaultStreamRankingPolicy))
+      .toBe("Japanese audio\n#1 · Score -11 · Avail -12 · Res +0 · Size +0 · Codec +0 · Meta +1 · Net +0");
+    const invalidPolicy = structuredClone(defaultStreamRankingPolicy);
+    invalidPolicy.torrent.unknownSeeds = NaN;
+    expect(rankedStreamDescription(source, 1, invalidPolicy)).toBe("Japanese audio");
+  });
+
   it.each([
     [{ audio: "Dual" }, "Dual audio"],
     [{ audio: "MULTI" }, "Multi audio"],
@@ -297,7 +364,7 @@ describe("public provider presentation boundary", () => {
             const { source: internal, stream } = publicSources[0]!;
             expect(fixturePrivacySafe(stream, [privateText, locator, title, ...(filename ? [filename] : [])])).toBe(true);
             expect(stream.name).toContain("1080p"); expect(stream.name).not.toContain("HEVC");
-            expect(stream.name).toContain("2.0GB"); expect(stream.title).toBeUndefined();
+            expect(stream.name).toContain("2.0GiB"); expect(stream.title).toBeUndefined();
             expect(stream.url).toMatch(/\/source\/[A-Za-z0-9_-]{32}\/stream\.mp4$/);
             expect(internal.url === url && internal.title === title && internal.filename === filename).toBe(true);
             expect(internal.requestHeaders?.Accept).toBe("video/mp4");
@@ -360,7 +427,7 @@ describe("public provider presentation boundary", () => {
     expect(response.status).toBe(200);
     const streams = (response.body as { streams: Array<{ name: string; title?: string; url: string }> }).streams;
     expect(streams).toHaveLength(1); expect(fixturePrivacySafe(streams, [privateText])).toBe(true);
-    expect(streams[0]!.name).toBe("Tribler · ID? · 1080p · 768MB · 28 seeds");
+    expect(streams[0]!.name).toBe("Tribler · ID? · 1080p · 768MiB · 28 seeds");
     expect(streams[0]!.title).toBe(expected);
     expect(streams[0]!.url.endsWith("/stream.mkv")).toBe(true);
     const token = /\/source\/([A-Za-z0-9_-]{32})\//.exec(streams[0]!.url)![1]!;

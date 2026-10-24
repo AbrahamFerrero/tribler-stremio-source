@@ -97,7 +97,8 @@ export function createApp(
     new TriblerPlaybackBackend(service)
   ], config.httpStreamTokenTtlMs, config.httpStreamTokenMaxEntries);
   const addon = createAddon(
-    service, log, catalogs, config.publicBaseUrl, config.legalTestMagnet, resolver, playback, movieMetadata
+    service, log, catalogs, config.publicBaseUrl, config.legalTestMagnet, resolver, playback, movieMetadata,
+    { rankingDetails: config.streamRankingDetails ?? false, rankingPolicy: config.streamRankingPolicy }
   );
   const app = express();
   app.disable("x-powered-by");

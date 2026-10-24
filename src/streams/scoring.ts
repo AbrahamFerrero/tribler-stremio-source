@@ -1,5 +1,7 @@
 import type { NormalizedStreamSource } from "./types";
-import { streamCodec, streamHeight } from "./details";
+import { validSeedCount } from "./seed-count";
+import { recognizedStreamAudio, recognizedStreamLanguage } from "./structured-metadata";
+import { effectiveStreamSize, streamCodec, streamHeight } from "./details";
 import { defaultStreamRankingPolicy, type StreamRankingPolicy } from "./ranking-policy";
 
 export interface StreamScoreComponents {
@@ -12,6 +14,7 @@ export interface StreamScoreComponents {
 }
 
 function availabilityScore(seeds: number | undefined, policy: StreamRankingPolicy): number {
+  seeds = validSeedCount(seeds);
   if (seeds === undefined) return policy.torrent.unknownSeeds;
   if (seeds === 0) return policy.torrent.zeroSeeds;
   // A logarithm makes the jump from 2 to 20 seeds matter far more than 80 to 150.
@@ -69,8 +72,8 @@ function directTransportScore(source: NormalizedStreamSource, policy: StreamRank
   if (source.type !== "http" && source.type !== "https") return 0;
   const probe = source.directHttp;
   if (!probe?.verified) return 0;
-  const latency = probe.firstByteLatencyMs;
-  const latencyScore = latency === undefined ? 0 : policy.direct.latencyMs.find(
+  const latency = probe.responseHeaderLatencyMs;
+  const latencyScore = latency === undefined || !Number.isFinite(latency) || latency < 0 ? 0 : policy.direct.latencyMs.find(
     (band) => band.max === undefined || latency <= band.max
   )?.score ?? 0;
   return (probe.rangeSupported ? 15 : 0) + latencyScore + (source.type === "https" ? 3 : 0);
@@ -80,16 +83,17 @@ export function streamScoreComponents(
   source: NormalizedStreamSource, policy: StreamRankingPolicy = defaultStreamRankingPolicy
 ): StreamScoreComponents {
   const height = streamHeight(source);
+  const sizeBytes = effectiveStreamSize(source);
   const direct = source.type === "http" || source.type === "https";
   return {
     availability: direct ? directAvailabilityScore(source, policy) : availabilityScore(source.seeds, policy),
     resolution: resolutionScore(height, policy),
     // Catalogs can offer HTTP and Tribler for the same file. Keep the existing
     // HTTP-first order when their availability is equally unknown.
-    size: direct ? directSizeScore(source.sizeBytes, height)
-      : Math.min(directSizeScore(source.sizeBytes, height), torrentStreamabilityScore(source.sizeBytes)),
+    size: direct ? directSizeScore(sizeBytes, height)
+      : Math.min(directSizeScore(sizeBytes, height), torrentStreamabilityScore(sizeBytes)),
     codec: codecScore(source),
-    metadata: (source.language ? 2 : 0) + (source.audio ? 1 : 0),
+    metadata: (recognizedStreamLanguage(source.language) ? 2 : 0) + (recognizedStreamAudio(source.audio) ? 1 : 0),
     transport: directTransportScore(source, policy)
   };
 }

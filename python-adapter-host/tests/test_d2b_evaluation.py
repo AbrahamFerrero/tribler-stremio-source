@@ -9,6 +9,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from tests.worker_integration import HEALTHY_WORKER_SECONDS, RESOLVER_SECONDS, REQUEST_SECONDS
+
 from adapter_host.config import AdapterSettings
 from adapter_host.evaluate_kodi_sources import evaluate, structural
 from adapter_host.kodi_profiles import KodiResolverProfile
@@ -51,8 +53,8 @@ class WorkerEvaluationTests(unittest.IsolatedAsyncioTestCase):
                     settings_file=settings_file, profile_path=directory / "profile"),
                     id=mode or "direct"))
             profiles.append(replace(profiles[0], id="unavailable", addon_path=root / "missing"))
-            settings = AdapterSettings(kodi_profiles=tuple(profiles), resolver_timeout_seconds=3,
-                                       request_timeout_seconds=4)
+            settings = AdapterSettings(kodi_profiles=tuple(profiles), resolver_timeout_seconds=RESOLVER_SECONDS,
+                                       request_timeout_seconds=REQUEST_SECONDS)
             managers = []
             original_resolve = KodiWorkerProcessManager.resolve
 
@@ -93,10 +95,10 @@ class WorkerEvaluationTests(unittest.IsolatedAsyncioTestCase):
                 id="pack", name="Pack", enabled=True, addon_path=test_http_api.FIXTURE,
                 addon_id="script.module.fake", module="adapter_host.kodi.adapters.source_pack",
                 callable="resolve", settings_file=settings_file, profile_path=root / "profile",
-                worker_timeout_seconds=2,
+                worker_timeout_seconds=HEALTHY_WORKER_SECONDS,
                 adapter_config={"sourcePackage": "fixture_sources", "sourceFolders": ["en"]})
-            settings = AdapterSettings(kodi_profiles=(profile,), resolver_timeout_seconds=3,
-                                       request_timeout_seconds=4)
+            settings = AdapterSettings(kodi_profiles=(profile,), resolver_timeout_seconds=RESOLVER_SECONDS,
+                                       request_timeout_seconds=REQUEST_SECONDS)
             media = {"id": "tt1254207", "kind": "movie", "title": "Big Buck Bunny", "year": 2008,
                      "externalIds": {"imdb": "tt1254207"}}
             with patch("adapter_host.evaluate_kodi_sources.AdapterSettings.from_environment", return_value=settings):
@@ -119,10 +121,10 @@ class WorkerEvaluationTests(unittest.IsolatedAsyncioTestCase):
             profile = KodiResolverProfile(
                 id="external", name="External", enabled=True, addon_path=test_http_api.FIXTURE,
                 addon_id="script.module.fake", module="adapter_host.kodi.adapters.external_scraper_package",
-                callable="resolve", profile_path=root / "profile", worker_timeout_seconds=2,
+                callable="resolve", profile_path=root / "profile", worker_timeout_seconds=HEALTHY_WORKER_SECONDS,
                 adapter_config={"packageModule": "scraper_package_a", "folders": ["torrents"]})
-            settings = AdapterSettings(kodi_profiles=(profile,), resolver_timeout_seconds=3,
-                                       request_timeout_seconds=4)
+            settings = AdapterSettings(kodi_profiles=(profile,), resolver_timeout_seconds=RESOLVER_SECONDS,
+                                       request_timeout_seconds=REQUEST_SECONDS)
             managers = []
             original_evaluate = KodiWorkerProcessManager.evaluate_source
 

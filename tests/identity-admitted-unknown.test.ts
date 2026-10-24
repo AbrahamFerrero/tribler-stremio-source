@@ -186,7 +186,7 @@ describe("conservative admitted UNKNOWN through resolver, probe and createAddon"
       try {
         for (const identityTrace of [false, true]) {
           const observed = await observePipeline(movie, upstream, providers, { identityTrace, inspect: ({ publicSources, ranking }) => {
-            expect(publicSources.map(entry => entry.source.url)).toEqual(urls);
+            expect(publicSources.map(entry => entry.source.url)).toEqual([urls[1], urls[0]]);
             outcomes.push({ ranking, sources: publicSources.map(entry => ({ source: entry.source,
               state: getBridgeIdentityState(entry.source), stream: { ...entry.stream,
                 url: entry.stream.url.replace(/\/source\/[A-Za-z0-9_-]{32}\//, "/source/OPAQUE/") } })) });

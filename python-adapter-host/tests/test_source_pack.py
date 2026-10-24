@@ -8,6 +8,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+from tests.worker_integration import HEALTHY_WORKER_SECONDS, RESOLVER_SECONDS, REQUEST_SECONDS
+
 from adapter_host.kodi.adapters.source_pack import ADAPTER_MODULE
 from adapter_host.kodi.process_manager import KodiWorkerConfig, KodiWorkerError, KodiWorkerProcessManager
 from adapter_host.kodi_profiles import KodiResolverProfile
@@ -28,7 +30,7 @@ class SourcePackWorkerTests(unittest.IsolatedAsyncioTestCase):
     setUp = test_callable_stream_resolver.CallableWorkerTests.setUp
     asyncTearDown = test_callable_stream_resolver.CallableWorkerTests.asyncTearDown
     observe_real_processes = test_kodi_worker.KodiWorkerTests.observe_real_processes
-    def manager(self, mode="", maximum=20, timeout=2, config=None, addon_path=FIXTURE):
+    def manager(self, mode="", maximum=20, timeout=HEALTHY_WORKER_SECONDS, config=None, addon_path=FIXTURE):
         directory = self.root / str(len(self.workers))
         directory.mkdir(exist_ok=True)
         settings = directory / "settings.json"
@@ -176,8 +178,11 @@ class SourcePackTests(SourcePackWorkerTests):
 
     async def test_timeout_and_cancellation_reap_pool_worker(self):
         processes = self.observe_real_processes()
+        blocked = self.manager("block", timeout=HEALTHY_WORKER_SECONDS)
         with self.assertRaisesRegex(KodiWorkerError, "^worker_timeout$"):
-            await self.manager("block", timeout=0.4).resolve(MOVIE)
+            await blocked.resolve(MOVIE)
+        self.assertTrue((blocked.config.profile_path / "started").exists(),
+                        "timeout occurred before the blocking provider initialized")
         worker = self.manager("block", timeout=5)
         task = asyncio.create_task(worker.resolve(MOVIE))
         deadline = asyncio.get_running_loop().time() + 2
@@ -211,10 +216,10 @@ class SourcePackHttpTests(unittest.TestCase):
     def test_http_metadata_and_external_ids_cannot_override_selected_source(self):
         profile = KodiResolverProfile(id="selected_pack", name="selected_pack", enabled=True, addon_path=FIXTURE,
                                       addon_id="script.module.fixture", module=ADAPTER_MODULE, callable="resolve",
-                                      worker_timeout_seconds=2,
+                                      worker_timeout_seconds=HEALTHY_WORKER_SECONDS,
                                       adapter_config={**CONFIG, "sourceIds": ["fixture_sources.en.01_legacy"]})
         settings = test_http_availability.AdapterSettings(kodi_profiles=(profile,),
-                                                         resolver_timeout_seconds=3, request_timeout_seconds=4)
+                                                         resolver_timeout_seconds=RESOLVER_SECONDS, request_timeout_seconds=REQUEST_SECONDS)
         with self.host(settings) as (server, registry):
             for media in ({**MOVIE, "metadata": {"sourceIds": ["fixture_sources.en.02_aware"]}},
                           {**MOVIE, "externalIds": {"sourceIds": "fixture_sources.en.02_aware"}}):
@@ -229,8 +234,8 @@ class SourcePackHttpTests(unittest.TestCase):
     def test_two_configured_source_packs_via_http_and_selector_rejection(self):
         profiles = tuple(KodiResolverProfile(id=name, name=name, enabled=True, addon_path=FIXTURE,
                          addon_id="script.module.fixture", module=ADAPTER_MODULE, callable="resolve",
-                         worker_timeout_seconds=2, adapter_config=CONFIG) for name in ("pack_a", "pack_b"))
-        settings = test_http_availability.AdapterSettings(kodi_profiles=profiles, resolver_timeout_seconds=3, request_timeout_seconds=4)
+                         worker_timeout_seconds=HEALTHY_WORKER_SECONDS, adapter_config=CONFIG) for name in ("pack_a", "pack_b"))
+        settings = test_http_availability.AdapterSettings(kodi_profiles=profiles, resolver_timeout_seconds=RESOLVER_SECONDS, request_timeout_seconds=REQUEST_SECONDS)
         with self.host(settings) as (server, registry):
             response = test_http_api.HttpApiTests._request_server(server, "/resolve", MOVIE)
             self.assertEqual(response[0], 200)

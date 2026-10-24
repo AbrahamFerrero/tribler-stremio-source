@@ -4,9 +4,20 @@ import { basename } from "node:path";
 import { isDangerousFile, isVideoFile } from "../video-selection";
 import { normalizeCandidateIdentity } from "./identity-qualification";
 import type { NormalizedStreamSource } from "./types";
+import { validSeedCount } from "./seed-count";
+import { descriptionText, recognizedStreamAudio, recognizedStreamLanguage } from "./structured-metadata";
 
 function text(value: unknown, length = 500): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim().slice(0, length) : undefined;
+}
+
+function structuredMetadata(value: unknown, length: number, recognized: (value: string) => boolean): string | undefined {
+  // Check the complete original before trim or truncation can repair an invalid claim.
+  if (typeof value !== "string" || !descriptionText(value)) return undefined;
+  const trimmed = value.trim();
+  // Valid claims may contain permitted ASCII spaces beyond the old truncation limit.
+  // Keep safe short opaque/subtitle values, but never recognize only a truncated prefix.
+  return recognized(value) || trimmed.length <= length ? trimmed : undefined;
 }
 
 function number(value: unknown): number | undefined {
@@ -81,10 +92,10 @@ export function normalizeStreamSource(value: unknown, providerId: string): Norma
   const quality = text(raw.quality, 80);
   const resolution = text(raw.resolution, 80);
   const codec = text(raw.codec, 80);
-  const audio = text(raw.audio, 120);
-  const language = text(raw.language, 80);
+  const audio = structuredMetadata(raw.audio, 120, recognizedStreamAudio);
+  const language = structuredMetadata(raw.language, 80, recognizedStreamLanguage);
   const sizeBytes = number(raw.sizeBytes);
-  const seeds = number(raw.seeds);
+  const seeds = validSeedCount(raw.seeds);
   const metadata = raw.metadata && typeof raw.metadata === "object" && !Array.isArray(raw.metadata)
     ? raw.metadata as Record<string, unknown> : undefined;
   const identity = normalizeCandidateIdentity(metadata?.identity);
