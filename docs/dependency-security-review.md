@@ -295,8 +295,9 @@ This acceptance does not establish remediation or authorize public publication.*
 
 ## v1.5.0 candidate review — 2026-11-03
 
-Status: **partial remediation; publication blocked; no v1.5 risk accepted**.
-This review supersedes historical acceptance only as the current decision boundary.
+Pre-acceptance review checkpoint: **partial remediation; publication blocked;
+no v1.5 risk accepted at that checkpoint**. The separate owner decisions below
+now apply to this candidate; v1.3/v1.4 decisions retain their original scope.
 
 ### B4: declared dependencies
 
@@ -362,3 +363,91 @@ The source-only artifact redistributes neither node_modules nor magicast bundles
 Users installing development dependencies still obtain the vulnerable artifact.
 All historical v1.3/v1.4 acceptances retain their original scope. Hosted CI remains
 NOT RUN and publication remains NO-GO until decisions and authorization exist.
+
+## Conditional owner acceptances for v1.5.0 — 2026-11-03
+
+The owner explicitly authorizes these separate temporary decisions for the v1.5
+source-only candidate based on `da9f1ec75ee670b94bbda0827728fe639b0374d4`
+(tree `d372456efe50dd3cb45c4b398b5e806cf2f63d05`) plus only these documentary
+acceptance edits. They do not automatically transfer a historical acceptance or
+approve another dependency graph, artifact or release. The final documentary
+commit/tree and fresh exact-SHA QA are recorded locally outside distributed sources.
+The owner is responsible for review and withdrawal, before publication and at
+the next dependency review. No functionality, dependency resolution, override,
+audit suppression or gate is changed.
+
+### magicast: explicit v1.5 renewal after equivalence review
+
+Compared with the separate 2026-10-24 v1.4 acceptance and public parent
+`18267ac0975f50e201c812db02d1c43cbb2d51ce`, lock entries (including integrity)
+for magicast 0.5.5, Vitest/coverage-v8 4.1.12 and external source-map-js 1.2.2
+are identical. Base/coverage configuration and the three CI jobs' 20-minute
+limits are unchanged. The installed magicast bundle hash matches the B5 hash
+above; its executable embedded source-map-js 1.2.1 remains vulnerable to
+GHSA-68fv-2mgg-jv7q. The external 1.2.2 resolution does not repair it.
+
+The reviewed consumer still imports parseModule for Vitest coverage configuration;
+its use for threshold updates is gated by thresholds.autoUpdate, which remains
+disabled. Neither project configuration nor runtime supplies inputSourceMap or
+sourceMapName. No magicast import or request path was identified in bridge src.
+Distribution remains source plus lockfile, excluding installed packages, bundles
+and binaries. Installation of development dependencies still obtains the vulnerable
+code. No material change to the accepted v1.4 exposure was identified in these
+boundaries; this is not proof of universal unreachability or safe arbitrary inputs.
+
+The owner therefore temporarily accepts this open risk specifically for v1.5.
+Residual risk: malicious development inputs can cause synchronous event-loop DoS.
+Only reviewed/trusted configuration, ASTs, source maps and composition options
+may be used; review contributions before running tools. Keep autoUpdate disabled
+and development/CI isolated with bounded execution. Timeouts limit duration,
+not map safety, CPU/memory consumption or synchronous blocking.
+
+Withdraw/reconsider immediately if untrusted maps become reachable, a production
+request path appears, consumers/dependencies/configuration or map options change,
+trust/isolation/time bounds fail, or distribution expands to installed packages,
+bundles, binaries or exposed development services. Replace this acceptance with
+a verified upstream correction when available: inspect the published executable
+artifact for removal/fixing of the embedded copy and rerun relevant gates. The
+prior registry finding above is dated evidence, not a new search for releases.
+Separately review any tooling replacement or reproducible patch/fork.
+**The vulnerability remains present and open; no correction is claimed.**
+
+### minimatch: explicit temporary v1.5 acceptance
+
+The owner temporarily accepts GHSA-g3hv-75wg-m249 for the locked development-only
+minimatch 3.1.5 and 10.2.6 entries. The reviewed 3.x implementation lacks the
+advisory's firstPhasePreProcess path. The reviewed typescript-estree consumer
+calls 10.x with dot:true and default optimizationLevel 1, below the >=2 condition
+for the analyzed amplification path. Runtime src imports neither minimatch nor
+magicast; no HTTP bridge-request path was identified. These bounded findings do
+not dismiss the advisory or establish universal safety. Malicious development
+patterns remain a residual CPU/memory DoS risk. A forced major update has no
+demonstrated compatibility and is not applied.
+
+Keep distribution source-only, development inputs/patterns/configuration reviewed
+and trusted, and tooling/CI isolated and bounded. Do not introduce optimizationLevel
+>=2 in this consumer or other vulnerable configurations. Review/withdraw on changes
+to dependencies, consumers, configuration, advisory, input trust, isolation or
+exposure, including a bridge-request path or expanded distribution. At dependency
+review and before publication, reassess a compatible upstream correction/backport
+or separately reviewed migration; replace acceptance with verified correction and
+relevant successful gates when available. No override, downgrade, general update
+or suppression is authorized by this decision.
+
+### Audit and authorization boundary
+
+The candidate's declared production audit is **PASS, zero vulnerabilities**;
+the complete npm audit is **FAIL, 11 moderate development entries** propagating
+the minimatch advisory, not 11 independent root bugs. Acceptance does not convert
+FAIL to PASS. The embedded magicast vulnerability (upstream high severity) is an
+additional open finding outside npm audit. Fresh audits and all applicable local
+gates must be measured again on the final SHA; prior QA is not inherited.
+
+Hosted Linux/Windows CI: **NOT RUN**. The unchanged workflow's full npm audit
+step will fail while these findings persist; risk acceptance does not suppress
+that gate or establish CI PASS. After local exact-SHA validation, the candidate
+can be presented for separate authorization of push and hosted CI, with this
+expected failure disclosed. **Publication remains NO-GO** until actual hosted
+CI results are reviewed, any failing gate receives an explicit resolution or
+separate decision, and final publication authorization is received. No push,
+PR, merge, tag, release or visibility change is authorized here.

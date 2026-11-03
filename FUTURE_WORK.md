@@ -11,8 +11,13 @@ US-1507 Trace Workbench, lifecycle corrections, private declaration/omission det
 and technical contracts v1–v7 are implemented. **Local technical closure: GO,
 feature frozen, 2026-11-03.** See [closure QA](docs/qa/v1.5-technical-closure.md).
 Earlier product-review suspensions are historical, not unfinished implementation.
-Publication remains unauthorized and NO-GO pending candidate-specific dependency
-decisions and hosted CI. See [candidate notes](docs/releases/v1.5.0.md).
+Separate temporary v1.5 owner acceptances now cover minimatch and embedded
+magicast under the dependency review conditions; both risks remain open.
+Production audit is PASS (zero), full audit FAIL (11 moderate development entries).
+Hosted Linux/Windows CI is NOT RUN; its unchanged full-audit step is expected
+to fail. Publication remains unauthorized and NO-GO pending verified hosted
+results, explicit resolution or a separate decision for any failing gate, and
+final authorization. See [candidate notes](docs/releases/v1.5.0.md).
 
 **US-1504 is deferred and is not a P0 closure prerequisite.** Its
 [phase-0 NO-GO](docs/qa/us-1504-playback-feasibility.md) identified a missing

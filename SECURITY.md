@@ -45,9 +45,10 @@ See [diagnostic limits](docs/diagnostics.md), [closure QA](docs/qa/v1.5-technica
 and [publication audit](docs/qa/v1.5-publication-readiness.md).
 
 The declared npm audits do not inspect every embedded bundle. The existing magicast
-source-map vulnerability remains open; previous conditional acceptance must be
-reviewed for the future v1.5 candidate. No new risk acceptance or publication
-authorization is asserted here. PR6, R-020 and Identity STRICT remain unchanged.
+source-map vulnerability remains open. The separate temporary v1.5 owner
+acceptance and withdrawal conditions are recorded in the dependency review;
+they do not establish remediation or publication authorization. PR6, R-020 and
+Identity STRICT remain unchanged.
 
 ## Localhost HTTP authorization
 
@@ -172,6 +173,12 @@ repository permissions and does not require secrets.
 
 The qs override is patched to 6.16.1. Development-only minimatch audit entries
 and the executable source-map-js 1.2.1 copy inside magicast 0.5.5 remain unresolved.
-Historical v1.4 acceptance does not apply to v1.5. The candidate is blocked for
-publication pending explicit scoped decisions or verified remediations. See the
+Historical v1.4 acceptance retains its scope. Separate temporary owner
+acceptances for v1.5 are now recorded, conditioned on trusted development inputs,
+source-only distribution, disabled autoUpdate and isolated/bounded tooling.
+Production audit: PASS (zero); full audit: FAIL (11 moderate development entries).
+The embedded magicast high-severity risk remains outside npm audit. Hosted
+Linux/Windows CI is NOT RUN and its unchanged full-audit step is expected to fail.
+Publication remains NO-GO pending verified hosted results, explicit resolution or
+a separate decision for any failing gate, and final authorization. See the
 [current dependency review](docs/dependency-security-review.md#v150-candidate-review--2026-11-03).
