@@ -1,6 +1,6 @@
 {
   "name": "tribler-stremio-bridge",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "description": "Local Stremio addon that streams torrents through Tribler's REST API",
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -9,7 +9,7 @@
   },
   "overrides": {
     "path-to-regexp": "0.1.13",
-    "qs": "6.16.0",
+    "qs": "6.16.1",
     "tmp": "0.2.7"
   },
   "scripts": {
@@ -21,6 +21,7 @@
     "privacy:tracker-observation": "tsx scripts/privacy-tracker-observation.mjs",
     "privacy:runtime": "tsx scripts/privacy-runtime-tribler-playback.ts",
     "diagnose:episodic-streams": "tsx scripts/diagnose-episodic-streams.ts",
+    "diagnostic": "node --import tsx scripts/diagnostic.ts",
     "evaluate:stremio-providers": "tsx scripts/evaluate-stremio-providers.ts",
     "evaluate:kodi-sources": "tsx scripts/evaluate-kodi-sources.ts",
     "compare:evaluations": "tsx scripts/compare-evaluations.ts",

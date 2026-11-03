@@ -82,7 +82,15 @@ export interface EpisodeResourceObservation extends Omit<MovieResourceObservatio
   year?: number;
 }
 
+export type HlsFailurePhase = "INITIAL_MANIFEST" | "VARIANT_PLAYLIST" | "AUDIO_PLAYLIST" | "MEDIA_RESOURCE" | "MAP_RESOURCE" | "KEY_RESOURCE";
+export type HlsFailureCause = "HTTP_RESPONSE" | "EMPTY_BODY" | "MANIFEST_TOO_LARGE" | "MANIFEST_LENGTH_MISMATCH" | "MANIFEST_INVALID"
+  | "PLAYLIST_TYPE_MISMATCH" | "PLAYLIST_DEPTH_LIMIT" | "NO_MEDIA_REFERENCE" | "NO_DISTINCT_MEDIA_REFERENCE" | "RESOURCE_INVALID"
+  | "TIMEOUT" | "ROUTE_REJECTED" | "BUDGET_EXHAUSTED" | "CAUSE_UNDETERMINED";
+/** Closed probe-owned facts only; never a URL, body, exception or request identity. */
+export interface HlsFailureEvidence { phase?: HlsFailurePhase; cause: HlsFailureCause; httpStatus?: number }
+
 export interface DirectHttpProbeMetadata {
+  hlsFailure?: HlsFailureEvidence;
   status: DirectHttpProbeStatus;
   verified: boolean;
   rangeSupported: boolean;

@@ -1,5 +1,54 @@
 # Local security
 
+## Diagnostic working-tree boundary (v1.5)
+
+Capture starts OFF, accepts only minimized typed primitive events, and has separate
+diagnostic quotas. Stop/expiry revoke admission before finalization. One optional
+sanitized report expires within five minutes; process restart restores no report.
+There is no automatic persistence or playback correlation. Real reports, including
+explicit JSON/HTML exports, must remain outside Git.
+
+US-1506 explicitly revises the context contract: anonymous event reports remain free
+of requested titles and registered provider identifiers/names. An owner can opt into
+private context only through the native Bearer-protected `/diagnostics/private/start`
+operation (CLI `--mode private`). A separate bounded controller vault receives only
+validated title/type/episode coordinates and registered provider labels, never source
+objects or upstream payloads. Title/provider labels are sensitive local context,
+not operational log fields; the registry failure warning now omits its provider ID.
+This narrow minimization does not close R-020 or redesign project-wide logging.
+
+The normal `/diagnostics/report`, status and anonymized JSON/HTML never include that
+vault. `/diagnostics/private/report` requires the same localhost Host/context/Bearer
+boundary and explicit opt-in session; it does not broaden CORS or accept file paths,
+credentials or executable actions. Private exports carry a prominent do-not-share
+notice. Anonymization rebuilds only the validated anonymous report; it is not HTML
+string redaction. Safe label projection rejects suspicious URLs/credentials/opaque
+tokens/paths/markup and limits title to 160 code units, provider ID/name to 96 each,
+64 providers and 32 KiB context per resolution. Rejected labels remain unobserved.
+Context bytes share the original 2 MiB DTO budget and original TTL/retention; stop,
+restart and expiry revoke writes and discard old context. Adapters retain no title
+or provider label buffers after callbacks. No private-value hashes are introduced.
+Private report responses bypass automatic ETag generation to avoid a body digest
+derived from sensitive context; public response validators are unchanged.
+
+The CLI connects directly to IPv4 loopback, without DNS, proxy or redirect following;
+Bearer secrets belong only in the environment and Authorization header. HTML is a
+single offline file with hash-pinned script/style and default-deny CSP. Explicit
+exports refuse known links and overwrite, but do not sandbox a hostile same-user
+directory race; Windows ACLs remain inherited and hard-link support is required.
+Safe bounded source declarations and closed label omission codes are additionally
+permitted only in explicit PRIVATE_LOCAL context. They remain untrusted declarations;
+raw filenames, locators and rejected values are not disclosed. Private-context
+exhaustion freezes metadata separately from technical trace recording, within the
+same aggregate ceiling. Normal exports discard the complete private namespace.
+See [diagnostic limits](docs/diagnostics.md), [closure QA](docs/qa/v1.5-technical-closure.md)
+and [publication audit](docs/qa/v1.5-publication-readiness.md).
+
+The declared npm audits do not inspect every embedded bundle. The existing magicast
+source-map vulnerability remains open; previous conditional acceptance must be
+reviewed for the future v1.5 candidate. No new risk acceptance or publication
+authorization is asserted here. PR6, R-020 and Identity STRICT remain unchanged.
+
 ## Localhost HTTP authorization
 
 The first inbound middleware requires exactly one canonical local Host and the effective
@@ -8,7 +57,7 @@ on an actual IPv6 loopback listener. Arbitrary authorities, ambiguous headers an
 targets are rejected before parsing or handlers. Forwarded headers confer no authority.
 `PUBLIC_BASE_URL` must use HTTP, one of the IPv4 profile hosts, the configured port and a root path.
 
-`/health`, `/providers`, `/resolve` and the `/downloads` namespace require an independent
+`/health`, `/providers`, `/resolve`, `/downloads` and `/diagnostics` namespaces require an independent
 64-character hexadecimal `BRIDGE_ADMIN_TOKEN` in one Authorization Bearer header. Provision
 32 random bytes with a local secret manager and set the process environment; never reuse the
 Tribler key. An absent variable disables administration with 403; a malformed configured value fails
@@ -81,12 +130,13 @@ If a key is exposed outside your computer, rotate it in Tribler and replace it i
 
 For a future separately authorized release, the code validation gates are `npm run security:repo`, `npm run test:security`,
 typecheck, lint, the full Node/Python and acceptance suites, coverage commands,
-build, both npm audits, and no unresolved security P0. CodeQL scanning can be
-restored if the repository becomes public or GitHub Code Security is enabled. A release
+build, both npm audits, and no unresolved security P0. The source repository is public; any hosted CodeQL execution must be verified
+separately and is not established by repository visibility. A release
 must also explicitly accept or close the P1 hostile-local-module limitation;
 the worker's audit hook is defence in depth, not a claim of hostile-code isolation.
 
-The documentation-only phase runs repository safety and document checks; it does not repeat those code suites or claim new CI results. The [dependency review](docs/dependency-security-review.md) records an unresolved embedded development-tool vulnerability temporarily accepted for local integration. Its acceptance is not publication approval, and zero declared npm advisories would not establish remediation.
+The v1.5.0 candidate requires fresh local gates and exact-SHA validation; hosted
+Linux/Windows CI remains NOT RUN until separately authorized push or PR. The [dependency review](docs/dependency-security-review.md) records an unresolved embedded development-tool vulnerability temporarily accepted for local integration. Its acceptance is not publication approval, and zero declared npm advisories would not establish remediation.
 
 Identity corroboration and transport verification are distinct. Neither `Verified`/HTTP checks nor `ID✓` promises audiovisual identity. PR6 remains open and Identity frozen. R-020 remains open for broader response/session/legacy/log/artifact disclosure, with bounded residual risk provisionally accepted for v1.3; recipient-header and HLS protections do not establish anonymity. Direct HTTPS exposes the connecting public IP to the remote server.
 
@@ -117,3 +167,11 @@ magnet fixtures. It complements `.gitignore`; it does not replace reviewing `git
 The GitHub Actions workflow is configured to run the repository safety scan, type-checking, linting, Node.js and Python
 tests, build, and dependency audits on push and pull-request events. Workflow configuration is not evidence of a successful run for this candidate. The workflow has read-only
 repository permissions and does not require secrets.
+
+## v1.5.0 dependency decision boundary
+
+The qs override is patched to 6.16.1. Development-only minimatch audit entries
+and the executable source-map-js 1.2.1 copy inside magicast 0.5.5 remain unresolved.
+Historical v1.4 acceptance does not apply to v1.5. The candidate is blocked for
+publication pending explicit scoped decisions or verified remediations. See the
+[current dependency review](docs/dependency-security-review.md#v150-candidate-review--2026-11-03).

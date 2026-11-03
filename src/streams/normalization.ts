@@ -52,6 +52,13 @@ export function hasKnownDirectVideoName(source: NormalizedStreamSource): boolean
   return names.some((name) => isVideoFile(fileEvidence(name)));
 }
 
+/** Same structural inputs and recognition as admission; display title is never evidence. */
+export function directVideoNames(source: NormalizedStreamSource): { filename: string | undefined; urlName: string; filenameVideo: boolean; urlVideo: boolean } {
+  const urlName = pathnameBasename(source.url!);
+  return { filename: source.filename, urlName, filenameVideo: Boolean(source.filename && isVideoFile(fileEvidence(source.filename))),
+    urlVideo: isVideoFile(fileEvidence(urlName)) };
+}
+
 export function normalizeStreamSource(value: unknown, providerId: string): NormalizedStreamSource | undefined {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
   const raw = value as Record<string, unknown>;

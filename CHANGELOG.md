@@ -1,11 +1,36 @@
 # Changelog
 
-## [1.4.0] - Unreleased
+## [1.5.0] - Unreleased
 
-Local public-source candidate based on the published v1.3.0 history. Candidate
-hosted private CI and publication approval are pending. The owner conditionally
-accepted the tooling risk on 2026-10-24. Historical
-private PASS results do not certify this transformed tree.
+Local source candidate continuing public v1.4.0; feature frozen. Publication is
+blocked pending dependency-risk decisions and hosted CI; no release is approved.
+
+### Added
+
+- OFF-by-default bounded diagnostic capture, protected native administrative CLI,
+  Trace Workbench and offline JSON/HTML reports with English/Spanish labels.
+- Technical envelopes v1–v7: observed resolver/Identity/ranking decisions,
+  deterministic HTTP/HLS failures and direct-media admission facts.
+- Explicit sensitive local context with independent omission/truncation reporting;
+  anonymous exports remain minimized and historical missing facts stay unknown.
+
+### Changed
+
+- Preserve the separately developed adjacent-year/title ambiguity refinement and
+  its synthetic acceptance fixtures; no new Identity or admission policy change.
+- Align root package/lock metadata to 1.5.0; retain private package semantics.
+- Pin qs to the minimal security patch 6.16.1; other resolutions are preserved.
+
+Post-resolution playback is UNOBSERVED; transport does not prove audiovisual
+identity. PR6, Identity STRICT, R-020 and same-user limitations remain open.
+See [candidate notes](docs/releases/v1.5.0.md) and
+[dependency review](docs/dependency-security-review.md#v150-candidate-review--2026-11-03).
+
+## [1.4.0] - 2026-10-24
+
+Public source release on commit `18267ac0975f50e201c812db02d1c43cbb2d51ce`,
+continuing v1.3.0. The tooling acceptance below is historical and applies only
+to v1.4; it does not authorize or certify v1.5.
 
 ### Added
 

@@ -94,6 +94,21 @@ AC-ID-028 and AC-ID-039 define the v1.3 year policy. For an exact episode reques
 
 Movie year can produce a hard contradiction only when one explicit, unambiguous year is obtained from already qualified identity/resource provenance. Multiple plausible years, an interval/range or otherwise ambiguous numeric-year evidence leave the year dimension UNKNOWN / FAIL_OPEN. Do not select a year heuristically or create a universal year-cleanup rule. Another independent hard contradiction can still reject the candidate. Episode resource/release years remain governed by AC-ID-028.
 
+**Scoped movie-year refinement, 2026-11-03 (user-authorized):** a difference of exactly
+one year is non-decisive when the same dated declaration or bounded resource name
+has a compatible whole title. Compatibility uses NFC, case folding and punctuation/
+whitespace separators only; it does not infer aliases, translations, token subsets,
+release-tag removal or independent provenance. This is uncertainty/FAIL_OPEN, never
+a new CORROBORATED anchor. An unrelated title, absent bound title, larger difference,
+conflicting comparable ID, structural conflict or supported measured-runtime mismatch
+retains its existing authority. A matching presentation label cannot excuse another
+resource's conflicting year. Effective file observations require validated, bound
+root-title evidence; unbound/multiple resource observations do not inherit an exception.
+This qualifies AC-ID-004 without reopening PR6, origin composition, dedupe or ranking.
+Historical smoke reports omit the requested year and original compared evidence;
+this policy refinement does not retroactively establish why any particular source
+was rejected, or certify a real source's content.
+
 ## Movies
 
 | ID / short name | Given | When | Then / expected production decision | Expected audit | Required evidence | Notes / limitation |
@@ -101,7 +116,7 @@ Movie year can produce a hard contradiction only when one explicit, unambiguous 
 | AC-ID-001 Matching independently supplied external ID | Requested movie and candidate independently share a supported external ID. | A safe candidate is qualified. | ADMIT unless a hard contradiction exists. | CORROBORATED without hard contradiction; otherwise CONTRADICTION. | integration | Provider echo is not independent; contradiction overrides corroboration. |
 | AC-ID-002 Conflicting external ID | Both sides state different IDs in the same supported namespace. | Candidate is qualified. | REJECT comparable conflicting ID absent equally strong counter-anchor; disputed resource follows D-082/093. | CONTRADICTION or approved SUSPICIOUS | integration | IDs must have comparable semantic scope; strong counter-anchor/same-resource origin dispute follows D-082/093 (SUSPICIOUS/ADMIT). Missing/different-namespace IDs are not conflicts. |
 | AC-ID-003 Compatible movie year | Trusted request year and explicit candidate release year agree. | An otherwise eligible movie is resolved. | Retain: ADMIT. | CORROBORATED only with the immediately delimited resource-title/year matrix; otherwise UNKNOWN. | integration | Same year alone does not establish the same movie. |
-| AC-ID-004 Incompatible movie year | Trusted requested year conflicts with an unambiguous explicit movie year. | Presentation, filename or resource evidence is qualified. | REJECT unless independent matching ID + resource-year dispute (D-084). | CONTRADICTION or approved SUSPICIOUS | acceptance | D-084/ID-EXT-05: independent matching ID + conflicting resource year is SUSPICIOUS/ADMIT; otherwise reject. Ambiguous years are AC-ID-039. |
+| AC-ID-004 Incompatible movie year | Trusted requested year conflicts with an unambiguous explicit movie year. | Presentation, filename or resource evidence is qualified. | REJECT unless the scoped adjacent-year/title ambiguity above or independent matching ID + resource-year dispute (D-084) applies. | Uncertain for adjacent-year/title ambiguity; otherwise CONTRADICTION or approved SUSPICIOUS | acceptance | Adjacent-year compatibility never corroborates. D-084/ID-EXT-05 composition remains separate; ambiguous numeric years are AC-ID-039. |
 | AC-ID-005 Episodic resource for movie | A movie request receives explicit episodic kind or bounded episode coordinates. | Candidate is qualified. | Exclude: REJECT. | CONTRADICTION | system | Prose mentioning an episode is insufficient. |
 | AC-ID-006 Compatible measured movie runtime | Trusted movie runtime and verified MP4/HLS duration exist. | Absolute difference is at most max(10 minutes, 30% of expected runtime). | Retain: ADMIT. | UNKNOWN absent other evidence; runtime agreement never corroborates identity. | acceptance | Equality survives. A compatible runtime does not identify the movie. |
 | AC-ID-007 Gross measured movie mismatch | The same trusted and measured durations exist. | Difference exceeds max(10 minutes, 30%). | Exclude: REJECT. | CONTRADICTION | acceptance | Apply symmetrically to shorter and longer content, through normal rejection/backfill accounting. |

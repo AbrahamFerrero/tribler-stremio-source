@@ -24,3 +24,10 @@ python-adapter-host/.inspection-work/
 python-adapter-host/kodi-addons/
 python-adapter-host/kodi-settings/
 python-adapter-host/kodi-data/
+
+# Source distribution uses an explicit manifest; npm publishing is not supported.
+dist/
+.cache/
+.npm-cache/
+node_modules/
+.publication-*/

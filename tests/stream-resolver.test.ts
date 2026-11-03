@@ -413,8 +413,9 @@ describe("stream provider registry and resolver", () => {
         expect(resolver.diagnostics().find(entry => entry.id === "healthy")).toMatchObject({ status: "ok" });
         expect(captured).toHaveLength(1);
         expect(JSON.parse(captured[0]!)).toMatchObject({
-          level: "warn", message: "Stream provider failed", provider: "broken", error: "Provider failed"
+          level: "warn", message: "Stream provider failed", error: "Provider failed"
         });
+        expect(JSON.parse(captured[0]!)).not.toHaveProperty("provider");
         expect(JSON.stringify([captured, resolver.diagnostics()]).includes("SYNTHETIC_PROVIDER_PRIVATE_VALUE")).toBe(false);
         expect(readErrorField).not.toHaveBeenCalled();
       } finally { warning.mockRestore(); }

@@ -86,7 +86,7 @@ export function localRequestPolicy(adminToken?: string): RequestHandler {
     const path = req.path;
     if (/%(?:2f|5c|00)|\\/i.test(path)) { deny(res, 400); return; }
     if (!unambiguousContext(req)) { deny(res); return; }
-    const admin = /^\/(health|providers|resolve|downloads)(?:\/|$)/i.test(path);
+    const admin = /^\/(health|providers|resolve|downloads|diagnostics)(?:\/|$)/i.test(path);
     const manifest = /^\/manifest\.json\/?$/i.test(path);
     const discovery = /^\/(catalog|meta|stream)\//.test(path);
     const playback = /^\/(auto|play)(?:\/|$)/i.test(path);

@@ -295,6 +295,30 @@ export function canObservePreProbeMovieResourceYearConflict(item: NormalizedMedi
   return !resource?.kind && resource?.year !== undefined && resource.year !== item.year;
 }
 
+/** Weak compatibility for year ambiguity only; never a positive identity anchor. */
+function movieYearTitle(value: string): string {
+  return value.normalize("NFC").toLowerCase().replace(/[\p{P}\s]+/gu, " ").trim();
+}
+
+function compatibleMovieTitle(requested: string, stated: string | undefined): boolean {
+  if (!stated || stated.length > 300 || requested.length > 300) return false;
+  const requestedKey = movieYearTitle(requested);
+  return !!requestedKey && requestedKey === movieYearTitle(stated);
+}
+
+function compatibleMovieNames(item: NormalizedMediaItem, names: string[], year: number | undefined): boolean {
+  const dated = names.filter(name => videoFilenameYear([name]) !== undefined);
+  return dated.length > 0 && dated.every(name => {
+    const match = /^(.{1,300}?)[._ -]+((?:19|20)\d{2})(?=$|[._ -])/.exec(name);
+    return !!match && Number(match[2]) === year && compatibleMovieTitle(item.title, match[1]);
+  });
+}
+
+function movieYearConflict(item: NormalizedMediaItem, year: number | undefined, compatibleTitle: boolean): boolean {
+  return item.year !== undefined && year !== undefined && year !== item.year
+    && !(Math.abs(year - item.year) === 1 && compatibleTitle);
+}
+
 /** Returns a category only when both sides state a conflicting identity. */
 export function identityMismatchReason(item: NormalizedMediaItem, source: NormalizedStreamSource,
   options: { deferTextualRuntime?: boolean } = {}): IdentityMismatchReason | undefined {
@@ -327,12 +351,21 @@ export function identityMismatchReason(item: NormalizedMediaItem, source: Normal
     // Series/resource year comparison is deferred; it must not reject an episode.
   }
   if (item.kind === "movie") {
-    if (item.year !== undefined && (
-      (releaseTitle?.year !== undefined && releaseTitle.year !== item.year) ||
-      (structured?.year !== undefined && structured.year !== item.year) ||
-      (filenameIdentity?.year !== undefined && filenameIdentity.year !== item.year) ||
-      resources.some((evidence) => evidence?.year !== undefined && evidence.year !== item.year)
-    )) return "MOVIE_YEAR_CONFLICT";
+    const originalName = source.url ? mediaResourceBasename(source.url) : undefined;
+    // Each year needs its own title anchor. A matching label cannot excuse an
+    // unrelated filename, another route or an unbound measured observation.
+    const root = source.directHttp?.movieResource;
+    const compatibleRoot = !!root && validatedFileResource(source, root)
+      && source.directHttp?.resourceIdentities?.length === 1
+      && (root.titleKey === resourceTitleKey(item.title) || root.titleKey === resourceTitleKey(movieYearTitle(item.title)));
+    if (movieYearConflict(item, releaseTitle?.year, compatibleMovieTitle(item.title, releaseTitle?.title))
+      || movieYearConflict(item, structured?.year, compatibleMovieTitle(item.title, structured?.title))
+      || movieYearConflict(item, filenameIdentity?.year, compatibleMovieNames(item, releaseNames, filenameIdentity?.year))
+      || movieYearConflict(item, independentFilename?.year, compatibleMovieNames(item,
+        source.filename ? videoReleaseNames({ providerId: source.providerId, type: source.type, filename: source.filename }) : [], independentFilename?.year))
+      || movieYearConflict(item, urlIdentity?.year, compatibleMovieNames(item, originalName ? [originalName] : [], urlIdentity?.year))
+      || (source.directHttp?.resourceIdentities ?? []).some(evidence => movieYearConflict(item, evidence.year,
+        compatibleRoot && root?.year === evidence.year))) return "MOVIE_YEAR_CONFLICT";
     if (!options.deferTextualRuntime && measuredRuntimeSeconds(source) === undefined
       && item.runtimeSeconds !== undefined && candidateRuntime !== undefined) {
       if (presentationRuntimeContradicts(item.runtimeSeconds, candidateRuntime)) return "TEXTUAL_RUNTIME_CONFLICT";

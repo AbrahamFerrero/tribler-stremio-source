@@ -7,7 +7,7 @@ import { ExternalUrlPolicyError } from "../network/url-policy";
 import { MP4_INSPECTION_BYTES, mp4RuntimeFromPrefix, mp4RuntimeFromTail } from "./mp4-runtime";
 import { hasKnownDirectVideoName } from "./normalization";
 import { episodeResourceObservationFromUrl, movieResourceObservationFromUrl, resourceIdentityFromUrl } from "./identity-qualification";
-import type { DirectHttpProbeMetadata, DirectHttpProbeStatus, NormalizedStreamSource, ResourceIdentity } from "./types";
+import type { DirectHttpProbeMetadata, DirectHttpProbeStatus, HlsFailureCause, HlsFailureEvidence, HlsFailurePhase, NormalizedStreamSource, ResourceIdentity } from "./types";
 
 const SUCCESS_TTL_MS = 2 * 60_000;
 const FAILURE_TTL_MS = 30_000;
@@ -226,14 +226,33 @@ function isMediaSegmentType(contentType: string | undefined): boolean {
     || contentType === "application/octet-stream" || contentType === "application/mp4";
 }
 
+interface HlsProgress { phase: HlsFailurePhase; cause?: HlsFailureCause; httpStatus?: number }
+function hlsPhase(progress: HlsProgress, phase: HlsFailurePhase): void {
+  progress.phase = phase; delete progress.cause; delete progress.httpStatus;
+}
+function hlsFailure(progress: HlsProgress, error?: unknown, budget = false, timedOut = false): HlsFailureEvidence {
+  const status = errorStatus(error, timedOut);
+  const observed = budget ? "BUDGET_EXHAUSTED" : status === "route_rejected" ? "ROUTE_REJECTED"
+    : status === "timeout" ? "TIMEOUT" : progress.cause ?? "CAUSE_UNDETERMINED";
+  const httpStatus = progress.httpStatus;
+  const validHttp = typeof httpStatus === "number" && Number.isInteger(httpStatus) && httpStatus >= 100 && httpStatus <= 599;
+  const cause = observed === "HTTP_RESPONSE" && !validHttp ? "CAUSE_UNDETERMINED" : observed;
+  return { phase: progress.phase, cause,
+    ...(cause === "HTTP_RESPONSE" && validHttp ? { httpStatus } : {}) };
+}
+
 async function verifyHlsSegment(
   url: string,
   request: OutboundTransport["request"],
   signal: AbortSignal,
-  kind: "map" | "key" | "segment" = "segment"
+  kind: "map" | "key" | "segment",
+  progress: HlsProgress
 ): Promise<void> {
+  hlsPhase(progress, kind === "map" ? "MAP_RESOURCE" : kind === "key" ? "KEY_RESOURCE" : "MEDIA_RESOURCE");
   const { response } = await request({ url, method: "GET", headers: new Headers({ Accept: "*/*", "Accept-Encoding": "identity" }) }, signal);
   if (!response.ok || !response.body) {
+    progress.cause = !response.ok ? "HTTP_RESPONSE" : "EMPTY_BODY";
+    if (!response.ok) progress.httpStatus = response.status;
     await response.body?.cancel();
     throw new Error("HLS required resource did not provide usable bytes");
   }
@@ -245,6 +264,7 @@ async function verifyHlsSegment(
   );
   if (!prefix.length || documentFormat(prefix) || isZipPrefix(prefix)
     || (needsMediaSignature && !isMpegTsPrefix(prefix))) {
+    progress.cause = "RESOURCE_INVALID";
     throw new Error("HLS required resource has no media bytes");
   }
 }
@@ -254,69 +274,83 @@ async function verifyHlsMediaPath(
   rootBody: ReadableStream<Uint8Array> | null,
   transportRequest: OutboundTransport["request"],
   signal: AbortSignal,
-  rootContentLength?: number,
-  sourceHeaderScope?: SourceHeaderScope
+  rootContentLength: number | undefined,
+  sourceHeaderScope: SourceHeaderScope | undefined,
+  progress: HlsProgress
 ): Promise<Pick<DirectHttpProbeMetadata, "actualRuntimeSeconds" | "resourceIdentities">> {
   let playlistUrl = rootUrl;
+  let playlistPhase: HlsFailurePhase = "INITIAL_MANIFEST";
   let scope = sourceHeaderScope;
   const request: OutboundTransport["request"] = (outbound, signal) =>
     transportRequest({ ...outbound, ...(scope ? { sourceHeaderScope: scope } : {}) }, signal);
-  let playlist = await readHlsPlaylist(rootBody, signal, rootContentLength);
+  const readFailure = (cause: HlsFailureCause) => { progress.cause = cause; };
+  let playlist = await readHlsPlaylist(rootBody, signal, rootContentLength, readFailure);
   const resourceIdentities: ResourceIdentity[] = [];
   // At most two playlist transitions and two representative media requests.
   for (let depth = 0; depth <= MAX_HLS_PLAYLIST_TRANSITIONS; depth += 1) {
+    hlsPhase(progress, playlistPhase);
     const identity = resourceIdentityFromUrl(playlistUrl);
     if (identity) resourceIdentities.push(identity);
     const references = hlsMediaReferences(playlist, playlistUrl);
     const variant = references.find((reference) => reference.kind === "variant");
     if (variant) {
-      if (depth === MAX_HLS_PLAYLIST_TRANSITIONS) throw new Error("HLS playlist exceeded the bounded probe depth");
+      if (depth === MAX_HLS_PLAYLIST_TRANSITIONS) { progress.cause = "PLAYLIST_DEPTH_LIMIT"; throw new Error("HLS playlist exceeded the bounded probe depth"); }
       for (const dependency of hlsRequiredDependencies(playlist, playlistUrl)) {
-        await verifyHlsSegment(dependency.url, request, signal, dependency.kind);
+        await verifyHlsSegment(dependency.url, request, signal, dependency.kind, progress);
       }
+      hlsPhase(progress, playlistPhase);
       for (const audioUrl of hlsSelectedAudioRenditions(playlist, playlistUrl)) {
+        hlsPhase(progress, "AUDIO_PLAYLIST");
         const { response: audio, effectiveUrl: audioEffectiveUrl, sourceHeaderScope: audioScope } = await request({ url: audioUrl, method: "GET",
           headers: new Headers({ Accept: "*/*", "Accept-Encoding": "identity" }) }, signal);
         if (!audio.ok || !(isHlsCandidate(audioUrl, normalizedContentType(audio.headers))
           || isHlsCandidate(audioEffectiveUrl, normalizedContentType(audio.headers)))) {
+          progress.cause = !audio.ok ? "HTTP_RESPONSE" : "PLAYLIST_TYPE_MISMATCH";
+          if (!audio.ok) progress.httpStatus = audio.status;
           await audio.body?.cancel();
           throw new Error("HLS selected audio rendition did not provide a playlist");
         }
-        const audioPlaylist = await readHlsPlaylist(audio.body, signal, playlistBodyLength(audio));
+        const audioPlaylist = await readHlsPlaylist(audio.body, signal, playlistBodyLength(audio), readFailure);
         const audioReferences = hlsMediaReferences(audioPlaylist, audioEffectiveUrl);
         const audioRequest: OutboundTransport["request"] = (outbound, signal) => transportRequest({ ...outbound,
           ...(scope ? { sourceHeaderScope: audioScope ?? { ...scope,
             httpsOnly: scope.httpsOnly || new URL(audioEffectiveUrl).protocol === "https:" } } : {}) }, signal);
         const audioSegment = audioReferences.find((reference) => reference.kind === "segment");
         if (!audioSegment || audioReferences.some((reference) => reference.kind === "variant")) {
+          progress.cause = "NO_MEDIA_REFERENCE";
           throw new Error("HLS selected audio rendition has no direct media path");
         }
         for (const dependency of hlsRequiredDependencies(audioPlaylist, audioEffectiveUrl)) {
-          await verifyHlsSegment(dependency.url, audioRequest, signal, dependency.kind);
+          await verifyHlsSegment(dependency.url, audioRequest, signal, dependency.kind, progress);
         }
-        await verifyHlsSegment(audioSegment.url, audioRequest, signal);
+        await verifyHlsSegment(audioSegment.url, audioRequest, signal, "segment", progress);
       }
+      hlsPhase(progress, "VARIANT_PLAYLIST");
       const { response, effectiveUrl, sourceHeaderScope: variantScope } = await request({ url: variant.url, method: "GET", headers: new Headers({ Accept: "*/*", "Accept-Encoding": "identity" }) }, signal);
       if (!response.ok || !(isHlsCandidate(variant.url, normalizedContentType(response.headers))
         || isHlsCandidate(effectiveUrl, normalizedContentType(response.headers)))) {
+        progress.cause = !response.ok ? "HTTP_RESPONSE" : "PLAYLIST_TYPE_MISMATCH";
+        if (!response.ok) progress.httpStatus = response.status;
         await response.body?.cancel();
         throw new Error("HLS variant did not provide a playlist");
       }
       playlistUrl = effectiveUrl;
       if (scope) scope = variantScope ?? { ...scope, httpsOnly: scope.httpsOnly || new URL(effectiveUrl).protocol === "https:" };
-      playlist = await readHlsPlaylist(response.body, signal, playlistBodyLength(response));
+      playlistPhase = "VARIANT_PLAYLIST";
+      playlist = await readHlsPlaylist(response.body, signal, playlistBodyLength(response), readFailure);
       continue;
     }
     const segments = references.filter((reference) => reference.kind === "segment");
-    if (!segments.length) throw new Error("HLS playlist has no playable media reference");
+    if (!segments.length) { progress.cause = "NO_MEDIA_REFERENCE"; throw new Error("HLS playlist has no playable media reference"); }
     const first = segments[0]!;
     const later = segments.length > 1 ? [...segments].reverse().find((segment) => segment.url !== first.url) : undefined;
-    if (segments.length > 1 && !later) throw new Error("HLS playlist has no distinct later media reference");
+    if (segments.length > 1 && !later) { progress.cause = "NO_DISTINCT_MEDIA_REFERENCE"; throw new Error("HLS playlist has no distinct later media reference"); }
     for (const dependency of hlsRequiredDependencies(playlist, playlistUrl)) {
-      await verifyHlsSegment(dependency.url, request, signal, dependency.kind);
+      await verifyHlsSegment(dependency.url, request, signal, dependency.kind, progress);
     }
-    await verifyHlsSegment(first.url, request, signal);
-    if (later) await verifyHlsSegment(later.url, request, signal);
+    await verifyHlsSegment(first.url, request, signal, "segment", progress);
+    if (later) await verifyHlsSegment(later.url, request, signal, "segment", progress);
+    hlsPhase(progress, playlistPhase);
     const seconds = hlsVodDurationSeconds(playlist);
     return { ...(seconds !== undefined ? { actualRuntimeSeconds: seconds } : {}),
       ...(resourceIdentities.length ? { resourceIdentities } : {}) };
@@ -366,7 +400,9 @@ export class DirectStreamProbe {
     shouldBackfill?: (source: NormalizedStreamSource) => boolean,
     networkStart?: (providerId: string) => void,
     /** Optional resolver-owned scheduling decision; never provider metadata. */
-    shouldDefer?: (source: NormalizedStreamSource) => boolean
+    shouldDefer?: (source: NormalizedStreamSource) => boolean,
+    /** Opt-in call-local facts. Cache hits never reconstruct discarded raw headers. */
+    mimeObservation?: (source: NormalizedStreamSource, state: "ABSENT" | "MALFORMED" | "VALID") => void
   ): Promise<NormalizedStreamSource[]> {
     if (!this.options.enabled) return sources;
     const output = [...sources];
@@ -437,7 +473,8 @@ export class DirectStreamProbe {
         const source = output[index];
         if (!source || !isDirect(source)) break;
         output[index] = { ...source, directHttp: await this.probeOne(source.url, source.requestHeaders, signal, budget.signal, attemptTimeoutMs,
-          networkStart ? () => networkStart(source.providerId) : undefined) };
+          networkStart ? () => networkStart(source.providerId) : undefined,
+          mimeObservation ? state => mimeObservation(source, state) : undefined) };
         if (shouldBackfill?.(output[index])) replacementsPending += 1;
       }
     });
@@ -482,7 +519,8 @@ export class DirectStreamProbe {
     parentSignal?: AbortSignal,
     budgetSignal?: AbortSignal,
     attemptTimeoutMs = this.options.timeoutMs,
-    networkStart?: () => void
+    networkStart?: () => void,
+    mimeObservation?: (state: "ABSENT" | "MALFORMED" | "VALID") => void
   ): Promise<DirectHttpProbeMetadata> {
     if (parentSignal?.aborted) throw parentSignal.reason instanceof Error
       ? parentSignal.reason : new Error("Direct probe cancelled");
@@ -518,6 +556,8 @@ export class DirectStreamProbe {
     budgetSignal?.addEventListener("abort", budgetAbort, { once: true });
     const started = this.now();
     let metadata: DirectHttpProbeMetadata;
+    let progress: HlsProgress | undefined = isHlsCandidate(url, undefined) ? { phase: "INITIAL_MANIFEST" } : undefined;
+    let observedHlsFailure: HlsFailureEvidence | undefined;
     let resourceIdentities: ResourceIdentity[] = [];
     let effectiveResourceUrl: string | undefined;
     try {
@@ -529,6 +569,7 @@ export class DirectStreamProbe {
       let { response, effectiveUrl } = outbound;
       let hls = isHlsCandidate(url, normalizedContentType(response.headers))
         || isHlsCandidate(effectiveUrl, normalizedContentType(response.headers));
+      if (hls && !progress) progress = { phase: "INITIAL_MANIFEST" };
       if (response.status === 403 || response.status === 416 || (response.status === 206 && hls)) {
         // Some servers reject Range (403/416); a partial HLS manifest also
         // needs a full GET. Retry once within this candidate's existing deadline.
@@ -549,7 +590,12 @@ export class DirectStreamProbe {
       const resourceIdentity = response.ok ? resourceIdentityFromUrl(effectiveUrl) : undefined;
       if (resourceIdentity) resourceIdentities = [resourceIdentity];
       const type = normalizedContentType(response.headers);
+      if (mimeObservation) {
+        try { mimeObservation(type ? "VALID" : response.headers.has("content-type") ? "MALFORMED" : "ABSENT"); }
+        catch { /* Observation cannot affect transport behavior. */ }
+      }
       hls = hls || isHlsCandidate(url, type) || isHlsCandidate(effectiveUrl, type);
+      if (hls && !progress) progress = { phase: "INITIAL_MANIFEST" };
       const common = type ? { contentType: type } : {};
       if (response.status === 200) {
         const observedSizeBytes = safeSize(response.headers.get("content-length"));
@@ -557,7 +603,8 @@ export class DirectStreamProbe {
           try {
             const observation = await verifyHlsMediaPath(
               effectiveUrl, response.body, request, controller.signal, playlistBodyLength(response),
-              outbound.sourceHeaderScope ?? { ...initialScope, httpsOnly: initialScope.httpsOnly || new URL(effectiveUrl).protocol === "https:" }
+              outbound.sourceHeaderScope ?? { ...initialScope, httpsOnly: initialScope.httpsOnly || new URL(effectiveUrl).protocol === "https:" },
+              progress!
             );
             metadata = {
               status: "verified", verified: true, rangeSupported: false, responseStatus: 200, hls: true,
@@ -570,6 +617,8 @@ export class DirectStreamProbe {
             if (parentSignal?.aborted) throw error instanceof Error ? error : new Error("Direct probe cancelled");
             const status = abortedByBudget ? "budget_exhausted"
               : errorStatus(error, controller.signal.reason instanceof DOMException && controller.signal.reason.name === "TimeoutError");
+            observedHlsFailure = hlsFailure(progress!, error, abortedByBudget,
+              controller.signal.reason instanceof DOMException && controller.signal.reason.name === "TimeoutError");
             metadata = { status, verified: false, rangeSupported: false, responseStatus: 200, ...common };
           }
         } else {
@@ -619,6 +668,10 @@ export class DirectStreamProbe {
           }
         }
       } else {
+        if (progress) {
+          progress.cause = "HTTP_RESPONSE"; progress.httpStatus = response.status;
+          observedHlsFailure = hlsFailure(progress);
+        }
         await response.body?.cancel();
         metadata = { status: "unreachable", verified: false, rangeSupported: false, responseStatus: response.status, ...common };
       }
@@ -630,6 +683,8 @@ export class DirectStreamProbe {
         status: errorStatus(error, controller.signal.reason instanceof DOMException && controller.signal.reason.name === "TimeoutError"),
         verified: false, rangeSupported: false
       };
+      if (progress) observedHlsFailure = hlsFailure(progress, error, abortedByBudget,
+        controller.signal.reason instanceof DOMException && controller.signal.reason.name === "TimeoutError");
     } finally {
       clearTimeout(timeout);
       parentSignal?.removeEventListener("abort", abort);
@@ -638,6 +693,8 @@ export class DirectStreamProbe {
     if (abortedByBudget && (metadata.status === "verified" || (metadata.status === "reachable" && !metadata.archiveFormat))) {
       metadata = budgetExhausted();
     }
+    if (progress && metadata.status === "budget_exhausted") observedHlsFailure = { phase: progress.phase, cause: "BUDGET_EXHAUSTED" };
+    if (observedHlsFailure && !metadata.verified) metadata = { ...metadata, hlsFailure: observedHlsFailure };
     if (!metadata.resourceIdentities && resourceIdentities.length && !metadata.archiveFormat && !metadata.documentFormat
       && (metadata.verified || (metadata.status === "reachable" && metadata.responseStatus === 200
         && metadata.contentType?.startsWith("video/")))) {

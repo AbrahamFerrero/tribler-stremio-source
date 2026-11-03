@@ -292,9 +292,10 @@ export function hlsVodDurationSeconds(text: string): number | undefined {
 export async function readHlsPlaylist(
   body: ReadableStream<Uint8Array> | null,
   signal?: AbortSignal,
-  expectedLength?: number
+  expectedLength?: number,
+  observeFailure?: (cause: "EMPTY_BODY" | "MANIFEST_TOO_LARGE" | "MANIFEST_LENGTH_MISMATCH" | "MANIFEST_INVALID") => void
 ): Promise<string> {
-  if (!body) throw new Error("HLS playlist has no body");
+  if (!body) { observeFailure?.("EMPTY_BODY"); throw new Error("HLS playlist has no body"); }
   const reader = body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
@@ -304,14 +305,14 @@ export async function readHlsPlaylist(
       const next = await reader.read();
       if (next.done) break;
       total += next.value.length;
-      if (total > MAX_PLAYLIST_BYTES) throw new Error("HLS playlist is too large");
+      if (total > MAX_PLAYLIST_BYTES) { observeFailure?.("MANIFEST_TOO_LARGE"); throw new Error("HLS playlist is too large"); }
       chunks.push(next.value);
     }
   } finally {
     await reader.cancel();
   }
-  if (expectedLength !== undefined && total !== expectedLength) throw new Error("HLS playlist body length mismatch");
+  if (expectedLength !== undefined && total !== expectedLength) { observeFailure?.("MANIFEST_LENGTH_MISMATCH"); throw new Error("HLS playlist body length mismatch"); }
   const text = new TextDecoder("utf-8", { fatal: true }).decode(Buffer.concat(chunks));
-  if (!hasValidHlsStructure(text)) throw new Error("HLS playlist is invalid");
+  if (!hasValidHlsStructure(text)) { observeFailure?.("MANIFEST_INVALID"); throw new Error("HLS playlist is invalid"); }
   return text;
 }

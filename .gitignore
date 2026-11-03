@@ -44,3 +44,6 @@ settings.json
 /evaluation-results/
 /identity-live-smoke.json
 /evaluation-corpora/
+
+# Optional local diagnostic preferences (may opt into private reports).
+/config/diagnostic.local.json

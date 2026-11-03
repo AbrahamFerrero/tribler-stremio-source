@@ -2,6 +2,9 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { getRouter } from "stremio-addon-sdk";
 import { createAddon } from "./addon";
 import { localRequestPolicy } from "./local-request-policy";
+import { DiagnosticController } from "./diagnostics/controller";
+import { diagnosticHttp } from "./diagnostics/http";
+import { diagnosticObserverFactory } from "./diagnostics/resolver-observer";
 import { createAutomaticStreamHandler, proxyDirectHttp } from "./automatic-stream";
 import type { SourceHeaderScope, SourceRequestHeaders } from "./network/http-privacy";
 import type { RepresentationState } from "./playback/representation";
@@ -74,7 +77,9 @@ export function createApp(
   const urlPolicy = urlPolicyOverride ?? createUrlPolicy(config);
   const outboundTransport = outboundTransportOverride ?? new DirectTransport(urlPolicy, config.httpPrivacy, log);
   const catalogs = provider ? (Array.isArray(provider) ? provider : [provider]) : createCatalogProviders(config, urlPolicy);
-  const resolver = createStreamResolver(catalogs, config, log, urlPolicy, outboundTransport);
+  const diagnostics = new DiagnosticController();
+  const resolver = createStreamResolver(catalogs, config, log, urlPolicy, outboundTransport, undefined, undefined,
+    diagnosticObserverFactory(diagnostics));
   const movieMetadata = config.stremioMovieMetadataBaseUrl
     ? new StremioMovieMetadataLookup({
       baseUrl: config.stremioMovieMetadataBaseUrl,
@@ -103,6 +108,7 @@ export function createApp(
   const app = express();
   app.disable("x-powered-by");
   app.use(localRequestPolicy(config.bridgeAdminToken));
+  app.use("/diagnostics", diagnosticHttp(diagnostics));
   app.use(express.json({ limit: "32kb" }));
 
   app.get("/health", asyncRoute(async (_req, res) => {

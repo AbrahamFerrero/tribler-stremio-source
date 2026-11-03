@@ -1,7 +1,7 @@
 # HTTP API contracts
 
 The inventory originated in private development checkpoints. Maintained endpoint contracts are mapped to the source files and regression cases in this document; HTTP/HLS privacy and lifetime evidence is indexed in [HTTP transport privacy](http-recipient-privacy.md#implementation-and-evidence-map) and [HLS token lifecycle](hls-token-lifecycle.md). Historical checkpoint results retain their original scope and are not new executions.
-This records the current API; it introduces no routes, status normalization or new security exceptions.
+This records the current API and its authorization requirements.
 Both services are local tools. Node binds a configured loopback address; Python binds `127.0.0.1`.
 Neither service is intended for remote exposure; CORS does not authenticate a local process.
 
@@ -39,7 +39,7 @@ direct HTTP/root-path/configured-port profile.
 | Catalog, meta, stream (including extra paths) | Exact Origin `https://web.stremio.com`; ACAO matches that origin. No native discovery exception. Present Fetch Metadata must be complete and coherent; no navigation, documents or user activation. A present Referer must have that same origin. |
 | Auto, play | Same Origin policy, or native GET/HEAD with no Origin, Referer or Fetch Metadata. Hashes, IDs and previous source visits do not authorize a new request. |
 | Source, HLS | Existing valid opaque capability for the requested source/resource; ACAO `*`, no credentials. Null/foreign Origin may use a valid capability but cannot acquire one through discovery. |
-| Health, providers, resolve, downloads and descendants | One `Authorization: Bearer <BRIDGE_ADMIN_TOKEN>` header, with no Origin, Referer or Fetch Metadata. Secret is independently provisioned as 32 random bytes encoded in 64 hex characters. No administrative CORS. |
+| Health, providers, resolve, downloads, diagnostics and descendants | One `Authorization: Bearer <BRIDGE_ADMIN_TOKEN>` header, with no Origin, Referer or Fetch Metadata. Secret is independently provisioned as 32 random bytes encoded in 64 hex characters. No administrative CORS. |
 
 Administrative routes return generic 403 if no secret is configured, and generic 401 with
 `WWW-Authenticate: Bearer` for missing/incorrect credentials when enabled. Browser context or
@@ -91,12 +91,18 @@ certify audiovisual identity; see the [v1.4 QA report](qa/v1.4-release-qa.md).
 
 ## Node routes
 
-`GET` routes also support bodyless `HEAD`. Playback has explicit HEAD handlers;
+Except for diagnostic controls (below), `GET` routes also support bodyless `HEAD`. Playback has explicit HEAD handlers;
 the other routes inherit Express/SDK HEAD behavior. Dynamic health/metrics can change
 between calls; HEAD is not a snapshot or a guarantee of identical JSON Content-Length.
 
 | Endpoint / method | Request | Success response | Important other outcomes |
 | --- | --- | --- | --- |
+| `/diagnostics/start` POST | JSON `{ttlMs:integer 1..300000, resolutions:integer 1..10, retainReport:boolean}`, all fields required, no others | 200 diagnostic status with `state:"ON"` | 409 active session; 400 invalid input |
+| `/diagnostics/status` GET | No body or query | 200 `{state:"OFF", reportAvailable:boolean}` or bounded ON counters | HEAD and other methods: 405 |
+| `/diagnostics/stop` POST | No body or query | 200 OFF status, idempotent | 400 body/query |
+| `/diagnostics/report` GET | No body or query; same administrative Bearer/native boundary | 200 final anonymous `DiagnosticReport` v1–v7 (historical versions supported), at most 2 MiB; never private context; [version additions and limits](releases/v1.5-diagnostic-readiness.md) | 409 `DIAGNOSTIC_CAPTURE_ACTIVE`; 404 `DIAGNOSTIC_REPORT_NOT_FOUND`; 410 `DIAGNOSTIC_REPORT_EXPIRED`; 500 `DIAGNOSTIC_REPORT_UNAVAILABLE`; HEAD/other methods 405, OPTIONS 403 |
+| `/diagnostics/private/start` POST | Same exact three-field body as `/diagnostics/start`; same native Bearer boundary; no queries | 200 normal ON status; explicitly enables bounded private context for this session only | 409 active; 400 invalid input; no private context in status |
+| `/diagnostics/private/report` GET | No body/query; same native Bearer boundary; context must have been opted into at start | 200 private wrapper `{version:1,privacy:"PRIVATE_LOCAL",report,context}`, at most 2 MiB including context | Same active/expired/unavailable errors as normal report; 404 also when private context was not captured; no CORS/HTML/file output |
 | `/health` GET, HEAD | None | 200 `{ok:true, bridge:"ready", tribler:"reachable", downloads:number, providers:object, httpPrivacy:object, triblerStreaming:object}` | 503 degraded or unavailable (below) |
 | `/providers` GET, HEAD | None | 200 `{providers: ProviderDiagnostic[]}` | Diagnostics reflect completed invocations, not a live availability probe |
 | `/downloads` GET, HEAD | None | 200 `{downloads: DownloadDiagnostic[]}` | Tribler/service errors use common mapping |
@@ -254,3 +260,16 @@ Run focused checks with `npx vitest run tests/integration/http-contract.test.ts`
 The reuse table identifies the broader suites needed at the final checkpoint. Counts are execution
 results, not compatibility guarantees. Real-environment smoke and a real Stremio UI journey are
 outside this synthetic HTTP contract campaign. No OpenAPI generation or production changes are required.
+
+
+### Diagnostic session ownership extension
+
+Authenticated diagnostic responses advertise `X-Diagnostic-Protocol: owned-session-v1`.
+The no-subcommand CLI requires this capability before reusing a listener. Optional
+`X-Diagnostic-Session: <session UUID>` on POST `/diagnostics/stop` atomically compares
+an active session and returns 409 without stopping a replacement. Malformed values
+return 400. With no active capture, stop remains idempotent and preserves retained
+reports. Optional `X-Diagnostic-Preserve-Report: true` on either start endpoint returns
+409 if a report is retained, before any start/reset; other values return 400. Header
+omission preserves legacy commands. These restrictions execute behind the unchanged
+localhost/Bearer boundary, accept no secrets or paths and add no browser CORS access.

@@ -482,10 +482,12 @@ describe("dirty upstream public-route acceptance", () => {
     const badCases = [
       { title: "Rejected HTTP", stream: { ...raw(failed, "Movie Title (1994)", "failed.mp4"), name: "4K HEVC" } },
       { title: "Rejected archive", stream: { ...raw(archive, "Movie Title (1994)", "archive.mkv", 9_999_999), name: "4K HEVC" } },
-      { title: "Rejected identity", stream: { ...raw(wrongYear, "Movie Title (1995)", "Movie.Title.1994.mp4"), name: "4K HEVC" } }
+      { title: "Rejected identity", stream: { ...raw(wrongYear, "Movie Title (1997)", "Movie.Title.1994.mp4"), name: "4K HEVC" } }
     ];
     const goodCases = [
       { title: "Movie Title (1994)", stream: raw(good, "Movie Title (1994)", "good.mp4") },
+      // Adjacent release-year ambiguity is retained without public corroboration.
+      { title: "Movie Title (1995)", stream: raw(good, "Movie Title (1995)", "good.mp4") },
       { title: "MOVIE TITLE (1994)", stream: { ...raw(good, "MOVIE TITLE (1994)", "GOOD.MP4"), name: "1080p HEVC English" } },
       { title: "Localized (1994)", stream: { ...raw(good, "Localized (1994)", "good.mp4"), name: "720p AAC" } }
     ];
@@ -497,6 +499,7 @@ describe("dirty upstream public-route acceptance", () => {
             fixture.streams = order;
             const streams = await publicStreams(bridge.origin);
             expect(streams.map(({ fixtureLabel }) => fixtureLabel)).toEqual([goodCase.title]);
+            if (goodCase.title === "Movie Title (1995)") expect(JSON.stringify(streams)).not.toContain("ID✓");
             await playable(streams[0]!, bridge.origin);
           }
         }

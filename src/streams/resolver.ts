@@ -1,6 +1,7 @@
 import type { Logger } from "../logger";
 import { validSeedCount } from "./seed-count";
-import { ExternalUrlPolicy } from "../network/url-policy";
+import { directMediaEvidence, type DirectMediaEvidence } from "./direct-media-evidence";
+import { ExternalUrlPolicy, ExternalUrlPolicyError } from "../network/url-policy";
 import { hasKnownDirectVideoName, normalizeStreamSource } from "./normalization";
 import { streamDeduplicationKey } from "./stream-deduplication";
 import { canClassifyAdmittedUnknown, canObservePreProbeMovieResourceYearConflict, effectiveEpisodeIdentityState, effectiveMovieIdentityState, identityMismatch, identityMismatchReason, measuredRuntimeMismatch, normalizeCandidateIdentity, sparseCandidateIdentityState } from "./identity-qualification";
@@ -9,7 +10,7 @@ import { DirectStreamProbe, isHlsCandidate } from "./direct-stream-probe";
 import type { DirectStreamProbeDiagnostics } from "./direct-stream-probe";
 import { scoreStream, streamScoreComponents, type StreamScoreComponents } from "./scoring";
 import { defaultStreamRankingPolicy, type StreamRankingPolicy } from "./ranking-policy";
-import type { BridgeIdentityState, NormalizedMediaItem, NormalizedStreamSource, ProviderDiagnostic, StreamProvider } from "./types";
+import type { BridgeIdentityState, HlsFailureCause, HlsFailureEvidence, HlsFailurePhase, NormalizedMediaItem, NormalizedStreamSource, ProviderDiagnostic, StreamProvider } from "./types";
 
 const MAX_RAW_RESULTS_PER_PROVIDER = 100;
 
@@ -46,18 +47,78 @@ export interface PreProbeIdentityDecision {
   identityState?: "UNKNOWN" | "CONTRADICTION";
 }
 
+export type DeterministicProbeCause = "ROUTE_REJECTED" | "ARCHIVE_ZIP" | "DOCUMENT_REJECTED" | "HTTP_CLIENT_ERROR" | "CAUSE_UNDETERMINED";
+export type DeterministicProbeEvidence = { cause: Exclude<DeterministicProbeCause, "HTTP_CLIENT_ERROR"> }
+  | { cause: "HTTP_CLIENT_ERROR"; httpStatus: number };
+
+export type StreamExclusion = { candidate: StreamCandidateRef } & (
+  | { stage: "normalized"; reason: "INVALID_SOURCE" | "IDENTITY_REJECTION" | "URL_POLICY_REJECTION" }
+  | { stage: "deduplicated"; reason: "DUPLICATE" | "MISSING_DEDUP_KEY" }
+  | { stage: "admitted"; reason: "IDENTITY_REJECTION" | "PROBE_BUDGET_EXHAUSTED" | "DETERMINISTIC_PROBE_REJECTION" | "HLS_NOT_VERIFIED" | "DIRECT_MEDIA_NOT_VERIFIED" | "PROBE_MISSING"; probeCause?: DeterministicProbeCause; httpStatus?: number; hlsPhase?: HlsFailurePhase; hlsCause?: HlsFailureCause }
+  | { stage: "final"; reason: "PROVIDER_RESULT_LIMIT" }
+);
+
 /** Optional in-memory instrumentation; no automatic logging or public API. */
 export interface StreamResolverTrace {
+  directMedia?(event: { candidate: StreamCandidateRef; evidence: DirectMediaEvidence }): void;
   /** Optional call-local references align with sources at every snapshot. */
   stage(stage: "provider" | "normalized" | "deduplicated" | "probed" | "admitted" | "final", sources: readonly NormalizedStreamSource[],
     candidateRefs?: readonly StreamCandidateRef[]): void;
   rejection?(event: StreamRejection): void;
+  exclusion?(event: StreamExclusion): void;
   preProbeIdentity?(event: PreProbeIdentityDecision): void;
   probeNetworkStart?(providerId: string): void;
   ranking?(candidates: readonly {
     transport: string; health?: string; responseHeaderLatencyMs?: number; seeds?: number; quality: number;
     score: number; components: StreamScoreComponents; providerId?: string;
   }[]): void;
+}
+
+export interface StreamResolverObservation {
+  trace: StreamResolverTrace;
+  request?(item: NormalizedMediaItem): void;
+  registry?: StreamRegistryObservation;
+  finish(interrupted: boolean, cancelled?: boolean): void;
+}
+
+export type StreamProviderFailureCategory = "REGISTRY_DEADLINE" | "URL_POLICY_REJECTED" | "CAUSE_UNDETERMINED";
+
+/** Only an existing bridge-owned error class is recognized; never read error properties. */
+function providerFailureCategory(error: unknown): StreamProviderFailureCategory {
+  try { if (error instanceof ExternalUrlPolicyError) return "URL_POLICY_REJECTED"; }
+  catch { /* Hostile exception objects cannot affect production or diagnostics. */ }
+  return "CAUSE_UNDETERMINED";
+}
+
+/** Call-local passive boundary. No provider object or result payload crosses it. */
+export interface StreamRegistryObservation {
+  captureNames?: boolean;
+  configured(slot: number, id: string, name: string, enabled: boolean): void;
+  state(slot: number, state: "INVOKED" | "RETURNED_ZERO" | "RETURNED_RESULTS" | "FAILED" | "TIMED_OUT" | "CANCELLED" | "NOT_OBSERVED"): void;
+  failure?(slot: number, category: StreamProviderFailureCategory): void;
+  counts(slot: number, received: number, delivered: number): void;
+  origins(slots: readonly number[]): void;
+}
+
+/** Compose per call; diagnostics may fail without changing legacy trace behavior. */
+function observedTrace(legacy: StreamResolverTrace | undefined, observation: StreamResolverObservation): StreamResolverTrace {
+  let failed = false;
+  const safe = (action: () => void) => {
+    if (failed) return;
+    try { action(); } catch {
+      failed = true;
+      try { observation.finish(true); } catch { /* Never forward observer errors. */ }
+    }
+  };
+  return {
+    stage: (...args) => { legacy?.stage(...args); safe(() => observation.trace.stage(...args)); },
+    preProbeIdentity: event => { legacy?.preProbeIdentity?.(event); safe(() => observation.trace.preProbeIdentity?.(event)); },
+    directMedia: event => { legacy?.directMedia?.(event); safe(() => observation.trace.directMedia?.(event)); },
+    exclusion: event => { legacy?.exclusion?.(event); safe(() => observation.trace.exclusion?.(event)); },
+    rejection: event => { legacy?.rejection?.(event); safe(() => observation.trace.rejection?.(event)); },
+    ranking: entries => { legacy?.ranking?.(entries); safe(() => observation.trace.ranking?.(entries)); },
+    ...(legacy?.probeNetworkStart ? { probeNetworkStart: legacy.probeNetworkStart.bind(legacy) } : {})
+  };
 }
 
 function isDirect(source: NormalizedStreamSource): source is NormalizedStreamSource & { url: string } {
@@ -74,13 +135,24 @@ function isVerifiedHls(source: NormalizedStreamSource): boolean {
 }
 
 export function isDeterministicProbeRejection(source: NormalizedStreamSource): boolean {
-  if (!isDirect(source)) return false;
+  return deterministicProbeRejectionEvidence(source) !== undefined;
+}
+
+/** Same decision as the historical predicate; precedence is route, ZIP, document, HTTP. */
+export function deterministicProbeRejectionEvidence(source: NormalizedStreamSource): DeterministicProbeEvidence | undefined {
+  if (!isDirect(source)) return;
   const probe = source.directHttp;
-  if (!probe) return false;
-  if (probe.status === "route_rejected" || probe.archiveFormat === "zip" || probe.documentFormat) return true;
+  if (!probe) return;
+  if (probe.status === "route_rejected") return { cause: "ROUTE_REJECTED" };
+  if (probe.archiveFormat === "zip") return { cause: "ARCHIVE_ZIP" };
+  if (probe.documentFormat) return { cause: ["html", "xml", "json"].includes(probe.documentFormat) ? "DOCUMENT_REJECTED" : "CAUSE_UNDETERMINED" };
   const responseStatus = probe.responseStatus;
-  return probe.status === "unreachable" && responseStatus !== undefined
-    && responseStatus >= 400 && responseStatus < 500 && ![408, 425, 429].includes(responseStatus);
+  if (probe.status === "unreachable" && responseStatus !== undefined
+    && responseStatus >= 400 && responseStatus < 500 && ![408, 425, 429].includes(responseStatus)) {
+    // Preserve the decision for malformed numeric observations, without exporting
+    // an invalid HTTP status. Real probe responses supply integer status codes.
+    return Number.isInteger(responseStatus) ? { cause: "HTTP_CLIENT_ERROR", httpStatus: responseStatus } : { cause: "CAUSE_UNDETERMINED" };
+  }
 }
 
 /**
@@ -88,18 +160,35 @@ export function isDeterministicProbeRejection(source: NormalizedStreamSource): b
  * path. Opaque URLs are fail-closed: the existing probe must have observed
  * video media in either a complete 200 response or a valid byte-range 206.
  */
-function admitDirectMedia(source: NormalizedStreamSource): boolean {
+type ProbeAdmissionRejection = "PROBE_BUDGET_EXHAUSTED" | "DETERMINISTIC_PROBE_REJECTION" | "HLS_NOT_VERIFIED" | "DIRECT_MEDIA_NOT_VERIFIED";
+type ObserveProbeRejection = (reason: ProbeAdmissionRejection, evidence?: DeterministicProbeEvidence, hls?: HlsFailureEvidence) => void;
+function rejectDirectMedia(reason: ProbeAdmissionRejection, observe?: ObserveProbeRejection, evidence?: DeterministicProbeEvidence, hls?: HlsFailureEvidence): false {
+  observe?.(reason, evidence, hls);
+  return false;
+}
+function admitDirectMedia(source: NormalizedStreamSource, observe?: ObserveProbeRejection, mediaObservation?: (evidence: DirectMediaEvidence) => void, mimeHeader?: "ABSENT" | "MALFORMED" | "VALID"): boolean {
+  const decision = (admitted: boolean, cause: DirectMediaEvidence["mediaCause"] = "NONE") => {
+    if (mediaObservation && isDirect(source)) {
+      try { mediaObservation(directMediaEvidence(source, admitted, cause, mimeHeader)); } catch { /* Passive diagnostics cannot change admission. */ }
+    }
+    return admitted;
+  };
   // A completed client error is stronger evidence than a video filename.
   // Request timeout, Too Early and rate limiting remain transient like 5xx.
   const probe = source.directHttp;
-  if (isDirect(source) && probe?.status === "budget_exhausted") return false;
-  if (isDeterministicProbeRejection(source)) return false;
+  if (isDirect(source) && probe?.status === "budget_exhausted") return rejectDirectMedia("PROBE_BUDGET_EXHAUSTED", observe);
+  const deterministic = deterministicProbeRejectionEvidence(source);
+  if (deterministic) return rejectDirectMedia("DETERMINISTIC_PROBE_REJECTION", observe, deterministic);
   // A video-looking URL cannot override an explicitly failed HLS media-path probe.
-  if (isDirect(source) && isHlsCandidate(source.url, source.directHttp?.contentType)) return isVerifiedHls(source);
-  if (!isDirect(source) || hasKnownDirectVideoName(source)) return true;
+  if (isDirect(source) && isHlsCandidate(source.url, source.directHttp?.contentType)) return isVerifiedHls(source) || rejectDirectMedia("HLS_NOT_VERIFIED", observe, undefined,
+    source.directHttp?.hlsFailure ?? { cause: "CAUSE_UNDETERMINED" });
+  if (!isDirect(source) || hasKnownDirectVideoName(source)) return decision(true);
   if (isVerifiedHls(source)) return true;
-  if (!probe || !isVideoMedia(source)) return false;
-  return probe.responseStatus === 200 || (probe.responseStatus === 206 && probe.verified && probe.rangeSupported);
+  if (!probe || !isVideoMedia(source)) return decision(rejectDirectMedia("DIRECT_MEDIA_NOT_VERIFIED", observe),
+    !probe ? "EVIDENCE_UNDETERMINED" : !probe.contentType ? "MIME_ABSENT" : "MIME_NOT_VIDEO");
+  const admitted = probe.responseStatus === 200 || (probe.responseStatus === 206 && probe.verified && probe.rangeSupported);
+  return decision(admitted || rejectDirectMedia("DIRECT_MEDIA_NOT_VERIFIED", observe), admitted ? "NONE"
+    : probe.responseStatus === 206 ? "RANGE_NOT_VERIFIED" : probe.responseStatus === undefined ? "EVIDENCE_UNDETERMINED" : "HTTP_RESPONSE_NOT_ACCEPTED");
 }
 
 export class StreamProviderRegistry {
@@ -130,10 +219,12 @@ export class StreamProviderRegistry {
     });
   }
 
-  active(): StreamProvider[] {
-    return [...this.providers.values()].filter((provider) =>
-      (this.enabledOverrides.get(provider.id) ?? provider.isEnabled())
-    );
+  active(observe?: (provider: StreamProvider, index: number, enabled: boolean) => void): StreamProvider[] {
+    return [...this.providers.values()].filter((provider, index) => {
+      const enabled = this.enabledOverrides.get(provider.id) ?? provider.isEnabled();
+      try { observe?.(provider, index, enabled); } catch { /* Passive observers never control eligibility. */ }
+      return enabled;
+    });
   }
 
   setEnabled(id: string, enabled: boolean): void {
@@ -189,13 +280,21 @@ export class StreamProviderRegistry {
     else this.runningProviders -= 1;
   }
 
-  async resolveAll(item: NormalizedMediaItem, signal?: AbortSignal): Promise<NormalizedStreamSource[]> {
-    const providers = this.active();
+  async resolveAll(item: NormalizedMediaItem, signal?: AbortSignal, observation?: StreamRegistryObservation): Promise<NormalizedStreamSource[]> {
+    let failed = false;
+    const notify = (action: () => void) => { if (failed) return; try { action(); } catch { failed = true; } };
+    const slots = observation ? new WeakMap<StreamProvider, number>() : undefined;
+    const providers = this.active(observation ? (provider, index, enabled) => {
+      if (index < 64) slots!.set(provider, index);
+      notify(() => observation.configured(index, observation.captureNames ? provider.id : "", observation.captureNames ? provider.name : "", enabled));
+    } : undefined);
     const resolveProvider = async (provider: StreamProvider): Promise<NormalizedStreamSource[]> => {
-      if (this.abandonedProviders.has(provider)) return [];
-      if (!await this.acquireProviderSlot(signal)) return [];
+      const slot = slots?.get(provider);
+      const state = (state: Parameters<StreamRegistryObservation["state"]>[1]) => { if (observation && slot !== undefined) notify(() => observation.state(slot, state)); };
+      if (this.abandonedProviders.has(provider)) { state("NOT_OBSERVED"); return []; }
+      if (!await this.acquireProviderSlot(signal)) { state("CANCELLED"); return []; }
       try {
-      if (signal?.aborted || this.abandonedProviders.has(provider)) return [];
+      if (signal?.aborted || this.abandonedProviders.has(provider)) { state(signal?.aborted ? "CANCELLED" : "NOT_OBSERVED"); return []; }
       const started = Date.now();
       const timeout = AbortSignal.timeout(provider.timeoutMs ?? this.timeoutMs);
       const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
@@ -203,6 +302,7 @@ export class StreamProviderRegistry {
         let settled = false;
         const execution = Promise.resolve().then(() => {
           if (combined.aborted) throw new Error("Provider timed out or was cancelled");
+          state("INVOKED");
           return provider.resolve(item, { signal: combined });
         });
         const completed = (): void => {
@@ -235,8 +335,16 @@ export class StreamProviderRegistry {
         });
         // A raw safety ceiling remains; the useful-result quota is applied
         // after identity qualification and per-provider deduplication.
-        return streams.slice(0, MAX_RAW_RESULTS_PER_PROVIDER);
-      } catch {
+        const delivered = streams.slice(0, MAX_RAW_RESULTS_PER_PROVIDER);
+        if (observation && slot !== undefined) notify(() => observation.counts(slot, streams.length, delivered.length));
+        state(streams.length === 0 ? "RETURNED_ZERO" : "RETURNED_RESULTS");
+        return delivered;
+      } catch (error: unknown) {
+        const outcome = signal?.aborted ? "CANCELLED" : timeout.aborted ? "TIMED_OUT" : "FAILED";
+        state(outcome);
+        if (observation?.failure && slot !== undefined && outcome !== "CANCELLED") {
+          notify(() => observation.failure!(slot, outcome === "TIMED_OUT" ? "REGISTRY_DEADLINE" : providerFailureCategory(error)));
+        }
         // Classify from bridge-owned cancellation state, never provider error text.
         const message = combined.aborted
           ? "Provider timed out or was cancelled"
@@ -246,14 +354,24 @@ export class StreamProviderRegistry {
           ...this.details(provider),
           latencyMs: Date.now() - started, lastError: message
         });
-        this.log.warn("Stream provider failed", { provider: provider.id, error: message });
+        // Registered names/IDs are now classified private context, never operational log labels.
+        this.log.warn("Stream provider failed", { error: message });
         return [];
       }
       } finally {
         this.releaseProviderSlot();
       }
     };
-    return (await Promise.all(providers.map(resolveProvider))).flat();
+    const groups = await Promise.all(providers.map(resolveProvider));
+    if (observation) notify(() => {
+      const origins: number[] = [];
+      for (const [index, group] of groups.entries()) {
+        for (let i = 0; i < group.length && origins.length < 256; i++) origins.push(slots!.get(providers[index]!) ?? -1);
+        if (origins.length === 256) break;
+      }
+      observation.origins(origins);
+    });
+    return groups.flat();
   }
 }
 
@@ -264,7 +382,8 @@ export class StreamResolver {
     private readonly directProbe?: DirectStreamProbe,
     private readonly trace?: StreamResolverTrace,
     private readonly rankingPolicy: StreamRankingPolicy = defaultStreamRankingPolicy,
-    private readonly maxResultsPerProvider = 50
+    private readonly maxResultsPerProvider = 50,
+    private readonly observe?: () => StreamResolverObservation | undefined
   ) {}
 
   diagnostics(): ProviderDiagnostic[] { return this.registry.status(); }
@@ -274,14 +393,21 @@ export class StreamResolver {
   }
 
   async resolve(item: NormalizedMediaItem, signal?: AbortSignal): Promise<NormalizedStreamSource[]> {
-    const raw = await this.registry.resolveAll(item, signal);
-    const references = this.trace?.rejection || this.trace?.preProbeIdentity
+    let observation: StreamResolverObservation | undefined;
+    try { observation = this.observe?.(); } catch { /* Capture admission is best effort. */ }
+    const trace = observation ? observedTrace(this.trace, observation) : this.trace;
+    const referenceLimit = this.trace ? Number.POSITIVE_INFINITY : 256;
+    let completed = false;
+    try {
+    try { observation?.request?.(item); } catch { try { observation?.finish(true); } catch { /* Passive only. */ } }
+    const raw = await this.registry.resolveAll(item, signal, observation?.registry);
+    const references = trace?.rejection || trace?.preProbeIdentity || trace?.exclusion
       ? new WeakMap<NormalizedStreamSource, StreamCandidateRef>() : undefined;
     const refsFor = (sources: readonly NormalizedStreamSource[]): readonly StreamCandidateRef[] | undefined =>
-      references ? sources.map(source => references.get(source)!) : undefined;
+      references ? Array.from({ length: Math.min(sources.length, referenceLimit) }, (_, index) => references.get(sources[index]!)!) : undefined;
     // One reference per intake occurrence, even if a provider repeats the same object.
-    const rawRefs = references ? raw.map(() => Object.freeze({})) : undefined;
-    this.trace?.stage("provider", raw, rawRefs);
+    const rawRefs = references ? Array.from({ length: Math.min(raw.length, referenceLimit) }, () => Object.freeze({})) : undefined;
+    trace?.stage("provider", raw, rawRefs);
     const probeEnabled = this.directProbe?.diagnostics().enabled ?? false;
     const valid: NormalizedStreamSource[] = [];
     const identityRejections = new Map<string, number>();
@@ -308,8 +434,11 @@ export class StreamResolver {
     const deferredRuntimeSources = new WeakSet<NormalizedStreamSource>();
     for (const [index, candidate] of raw.entries()) {
       const source = normalizeStreamSource(candidate, candidate.providerId);
-      if (!source) continue;
       const candidateRef = rawRefs?.[index];
+      if (!source) {
+        if (candidateRef) trace?.exclusion?.({ candidate: candidateRef, stage: "normalized", reason: "INVALID_SOURCE" });
+        continue;
+      }
       if (candidateRef) references?.set(source, candidateRef);
       if (source.metadata?.identity) {
         const key = streamDeduplicationKey(source);
@@ -334,29 +463,38 @@ export class StreamResolver {
           && !preProbeYearIdResources.has(streamDeduplicationKey(source)!)
           && canObservePreProbeMovieResourceYearConflict(item, source) ? mismatch : undefined;
       if (candidateRef) {
-        this.trace?.preProbeIdentity?.({ candidate: candidateRef, stage: "normalized",
+        trace?.preProbeIdentity?.({ candidate: candidateRef, stage: "normalized",
           decision: mismatch ? "REJECT" : "CONTINUE",
           ...(observedReason ? { identityState: "CONTRADICTION" as const }
             : !mismatch && canClassifyAdmittedUnknown(item, source) ? { identityState: "UNKNOWN" as const } : {}) });
-        if (observedReason) this.trace?.rejection?.({ candidate: candidateRef, stage: "normalized",
+        if (observedReason) trace?.rejection?.({ candidate: candidateRef, stage: "normalized",
           reason: observedReason, identityState: "CONTRADICTION" });
       }
       if (mismatch) {
+        if (candidateRef && !observedReason) trace?.exclusion?.({ candidate: candidateRef, stage: "normalized", reason: "IDENTITY_REJECTION" });
         identityRejections.set(source.providerId, (identityRejections.get(source.providerId) ?? 0) + 1);
         continue;
       }
       if (deferTextualRuntime && identityMismatch(item, source)) deferredRuntimeSources.add(source);
       if ((source.type === "http" || source.type === "https" || source.type === "torrent") && source.url) {
-        try { await this.policy.validate(source.url); } catch { continue; }
+        try { await this.policy.validate(source.url); } catch {
+          if (candidateRef) trace?.exclusion?.({ candidate: candidateRef, stage: "normalized", reason: "URL_POLICY_REJECTION" });
+          continue;
+        }
       }
       valid.push(source);
     }
     this.registry.recordIdentityRejections(identityRejections);
-    this.trace?.stage("normalized", valid, refsFor(valid));
+    trace?.stage("normalized", valid, refsFor(valid));
+    // Emit only at the existing decision branches; never infer a cause from snapshots.
+    const exclude = trace?.exclusion ? (source: NormalizedStreamSource, decision: { stage: "deduplicated"; reason: "DUPLICATE" | "MISSING_DEDUP_KEY" } | { stage: "final"; reason: "PROVIDER_RESULT_LIMIT" }) => {
+      const candidate = references?.get(source);
+      if (candidate) trace.exclusion!({ candidate, ...decision });
+    } : undefined;
     const providerDistinct = new Map<string, Map<string, NormalizedStreamSource>>();
     for (const source of valid) {
       const key = streamDeduplicationKey(source);
-      if (!key) continue;
+      if (!key) { exclude?.(source, { stage: "deduplicated", reason: "MISSING_DEDUP_KEY" }); continue; }
       let distinct = providerDistinct.get(source.providerId);
       if (!distinct) {
         distinct = new Map();
@@ -364,7 +502,9 @@ export class StreamResolver {
       }
       const previous = distinct.get(key);
       if (previous) {
-        if (scoreStream(source, this.rankingPolicy) > scoreStream(previous, this.rankingPolicy)) distinct.set(key, source);
+        if (scoreStream(source, this.rankingPolicy) > scoreStream(previous, this.rankingPolicy)) {
+          exclude?.(previous, { stage: "deduplicated", reason: "DUPLICATE" }); distinct.set(key, source);
+        } else exclude?.(source, { stage: "deduplicated", reason: "DUPLICATE" });
       } else {
         distinct.set(key, source);
       }
@@ -374,21 +514,26 @@ export class StreamResolver {
       for (const [key, source] of distinct) {
         const previous = deduplicated.get(key);
         if (!previous || scoreStream(source, this.rankingPolicy) > scoreStream(previous, this.rankingPolicy)) {
+          if (previous) exclude?.(previous, { stage: "deduplicated", reason: "DUPLICATE" });
           deduplicated.set(key, source);
-        }
+        } else exclude?.(source, { stage: "deduplicated", reason: "DUPLICATE" });
       }
     }
     const deduplicatedSources = [...deduplicated.values()];
-    this.trace?.stage("deduplicated", deduplicatedSources, refsFor(deduplicatedSources));
-    const networkStart = this.trace?.probeNetworkStart?.bind(this.trace);
+    trace?.stage("deduplicated", deduplicatedSources, refsFor(deduplicatedSources));
+    const networkStart = trace?.probeNetworkStart?.bind(trace);
+    const mimeHeaders = trace?.directMedia ? new WeakMap<NormalizedStreamSource, "ABSENT" | "MALFORMED" | "VALID">() : undefined;
     const probed = await this.directProbe?.probe(deduplicatedSources, signal,
       (source) => isDeterministicProbeRejection(source) || measuredRuntimeMismatch(item, source) || identityMismatch(item, source),
-      networkStart, source => deferredRuntimeSources.has(source))
+      networkStart, source => deferredRuntimeSources.has(source), mimeHeaders ? (source, state) => { mimeHeaders.set(source, state); } : undefined)
       ?? deduplicatedSources;
     // The probe preserves input positions while replacing sources with measured copies.
-    if (references) probed.forEach((source, index) => references.set(source, references.get(deduplicatedSources[index]!)!));
+    if (references) probed.forEach((source, index) => {
+      const ref = references.get(deduplicatedSources[index]!);
+      if (ref) references.set(source, ref);
+    });
     const candidateRefs = refsFor(probed);
-    this.trace?.stage("probed", probed, candidateRefs);
+    trace?.stage("probed", probed, candidateRefs);
     const admitted = probed
       // A probe cap must not turn later direct URLs into unexamined playback tokens.
       .filter((source, index) => {
@@ -396,14 +541,23 @@ export class StreamResolver {
         if (measuredMismatch || identityMismatch(item, source)) {
           identityRejections.set(source.providerId, (identityRejections.get(source.providerId) ?? 0) + 1);
           if (measuredMismatch || source.directHttp?.movieResource || source.directHttp?.episodeResource) bridgeIdentityStates.set(source, "CONTRADICTION");
-          if (measuredMismatch && candidateRefs) {
-            this.trace?.rejection?.({ candidate: candidateRefs[index]!, stage: "admitted", reason: "MEASURED_RUNTIME_CONTRADICTION",
+          if (measuredMismatch && candidateRefs?.[index]) {
+            trace?.rejection?.({ candidate: candidateRefs[index], stage: "admitted", reason: "MEASURED_RUNTIME_CONTRADICTION",
               identityState: "CONTRADICTION" });
           }
+          if (!measuredMismatch && candidateRefs?.[index]) trace?.exclusion?.({ candidate: candidateRefs[index], stage: "admitted", reason: "IDENTITY_REJECTION" });
           return false;
         }
         const admitted = (!probeEnabled || !isDirect(source) || source.directHttp !== undefined)
-          && admitDirectMedia(source);
+          && admitDirectMedia(source, candidateRefs?.[index] && trace?.exclusion ? (reason, evidence, hls) => {
+            trace.exclusion!({ candidate: candidateRefs[index]!, stage: "admitted", reason,
+              ...(evidence ? { probeCause: evidence.cause, ...("httpStatus" in evidence ? { httpStatus: evidence.httpStatus } : {}) } : {}),
+              ...(hls ? { hlsCause: hls.cause, ...(hls.phase ? { hlsPhase: hls.phase } : {}), ...(hls.httpStatus !== undefined ? { httpStatus: hls.httpStatus } : {}) } : {}) });
+          } : undefined, candidateRefs?.[index] && trace?.directMedia ? evidence => trace.directMedia!({ candidate: candidateRefs[index]!, evidence }) : undefined,
+          mimeHeaders?.get(deduplicatedSources[index]!));
+        if (candidateRefs?.[index] && !admitted && probeEnabled && isDirect(source) && source.directHttp === undefined) {
+          trace?.exclusion?.({ candidate: candidateRefs[index], stage: "admitted", reason: "PROBE_MISSING" });
+        }
         const key = admitted ? streamDeduplicationKey(source) : undefined;
         const effectiveState = admitted && key && !claimedIdentityResources.has(key)
           ? effectiveMovieIdentityState(item, source) ?? effectiveEpisodeIdentityState(item, source) : undefined;
@@ -423,7 +577,7 @@ export class StreamResolver {
         return admitted;
       });
     this.registry.recordIdentityRejections(identityRejections);
-    this.trace?.stage("admitted", admitted, refsFor(admitted));
+    trace?.stage("admitted", admitted, refsFor(admitted));
     const ranked = admitted
       .map((source, index) => ({ source, index }))
       .sort((left, right) => {
@@ -442,11 +596,13 @@ export class StreamResolver {
     const providerCounts = new Map<string, number>();
     const final = ranked.filter((source) => {
       const count = providerCounts.get(source.providerId) ?? 0;
-      if (count >= this.maxResultsPerProvider) return false;
+      if (count >= this.maxResultsPerProvider) { exclude?.(source, { stage: "final", reason: "PROVIDER_RESULT_LIMIT" }); return false; }
       providerCounts.set(source.providerId, count + 1);
       return true;
     });
-    this.trace?.ranking?.(final.map((source) => ({
+    trace?.ranking?.(Array.from({ length: Math.min(final.length, referenceLimit) }, (_, index) => {
+      const source = final[index]!;
+      return {
       transport: source.type,
       ...(source.directHttp ? { health: source.directHttp.status } : {}),
       ...(source.directHttp?.responseHeaderLatencyMs !== undefined ? { responseHeaderLatencyMs: source.directHttp.responseHeaderLatencyMs } : {}),
@@ -455,8 +611,13 @@ export class StreamResolver {
       score: scoreStream(source, this.rankingPolicy),
       components: streamScoreComponents(source, this.rankingPolicy),
       ...(/^[A-Za-z0-9_-]{1,64}$/.test(source.providerId) ? { providerId: source.providerId } : {})
-    })));
-    this.trace?.stage("final", final, refsFor(final));
+      };
+    }));
+    trace?.stage("final", final, refsFor(final));
+    completed = true;
     return final;
+    } finally {
+      try { observation?.finish(!completed, signal?.aborted ?? false); } catch { /* Resolution results/errors retain authority. */ }
+    }
   }
 }

@@ -292,3 +292,73 @@ binaries, bundles or exposed development services. Review on the next
 dependency change and before publication; retire only with executable-artifact
 evidence and relevant successful checks. **The vulnerability remains open.
 This acceptance does not establish remediation or authorize public publication.**
+
+## v1.5.0 candidate review — 2026-11-03
+
+Status: **partial remediation; publication blocked; no v1.5 risk accepted**.
+This review supersedes historical acceptance only as the current decision boundary.
+
+### B4: declared dependencies
+
+The installed lock resolves Express 4.22.2, body-parser 1.20.9 and qs 6.16.1.
+The sole dependency change is qs 6.16.0 -> 6.16.1, the minimal patch for
+[GHSA-6pq8-jhm2-2vcw](https://github.com/advisories/GHSA-6pq8-jhm2-2vcw).
+The existing qs override is updated; root package/lock versions become 1.5.0.
+No other package version, integrity or resolution changes. npm ci uses that lock.
+
+Reviewed request consumers in Express query middleware, Express extended-query
+utilities, body-parser's extended parser and the Stremio SDK call qs.parse.
+The bridge does not import qs or call qs.stringify; no route to the vulnerable
+stringify comma-array path was identified in these consumers. This bounded call
+review is not a proof about arbitrary future code. The patch removes the affected
+installed version regardless of that reachability assessment. Localhost/auth and
+input bounds mitigate exposure but are not substitutes for patching.
+
+Fresh npm audit: **11 moderate entries**, all development-only propagation of
+[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249).
+Production audit: **0**. These are advisory entries, not 11 independent root bugs.
+The advisory range is <11.0.1. Installed minimatch is 3.1.5 at the root
+and 10.2.6 under @typescript-eslint/typescript-estree. The legacy 3.x source lacks
+the named firstPhasePreProcess path; 10.2.6 contains it behind optimizationLevel >=2.
+The reviewed typescript-estree call uses { dot: true }, leaving its default
+optimizationLevel 1. ESLint/type tooling consumes local reviewed patterns; runtime
+src does not import minimatch. No bridge-request path was identified. These are
+bounded reachability/mitigation findings, not advisory dismissal or v1.5 acceptance.
+
+A global override to minimatch 11 would cross major versions and change the API
+expected by legacy ESLint consumers (including default callable exports). Updating
+the whole lint stack is outside minimal remediation. Options: obtain an upstream
+backport/advisory clarification for the locked legacy implementations, separately
+review a compatible tooling migration, or explicitly accept the bounded local-only
+risk for this exact candidate. No force fix, downgrade, or major override is applied.
+
+### B5: executable embedded dependency
+
+Registry latest magicast is still 0.5.5. The freshly installed artifact declares
+inlinedDependencies.source-map-js = 1.2.1 and contains executable source-map-js
+1.2.1 regions in dist/builders-CDdrUKLb.js. SHA-256:
+`6d589e4c1b4c89141d67698af6750c470184c575553029c80b110e8e091d553c`.
+Inspection of IndexedSourceMapConsumer confirms the old offset handling remains;
+this is executable embedded code, not merely stale metadata. External
+source-map-js 1.2.2 does not replace it.
+[GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q)
+therefore remains present (upstream severity high), even though npm audit does not
+report this embedded copy.
+
+Path: root -> @vitest/coverage-v8 -> magicast; installed Vitest coverage code uses
+config parsing/generation for thresholds.autoUpdate. Reviewed configs do not enable
+autoUpdate or supply inputSourceMap/sourceMapName; src has no magicast import.
+No bridge-request reachability was identified. Reviewed local inputs, disabled
+auto-update and bounded test processes limit exposure; they do not remove the code.
+No exploit campaign is performed or universal safety claimed.
+
+No corrected compatible upstream artifact exists in the registry check. Minimal
+remaining choices: await/review a rebuilt magicast artifact with fixed embedded
+code; separately authorize a pinned reproducible patch/fork with provenance and
+regression review; or explicitly accept the scoped development-only risk for this
+exact candidate. No patch/fork or new risk acceptance is inferred here.
+
+The source-only artifact redistributes neither node_modules nor magicast bundles.
+Users installing development dependencies still obtain the vulnerable artifact.
+All historical v1.3/v1.4 acceptances retain their original scope. Hosted CI remains
+NOT RUN and publication remains NO-GO until decisions and authorization exist.

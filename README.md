@@ -1,6 +1,14 @@
 # Tribler Stremio Bridge
 
-Documentation for the **v1.4.0 local public-source candidate (unreleased)**. The published baseline is **v1.3.0 — 2026-10-20**. See the [v1.4 notes](docs/releases/v1.4.0.md), [v1.3 notes](docs/releases/v1.3.0.md) and [changelog](CHANGELOG.md). The owner conditionally accepted the tooling risk on 2026-10-24; final-commit hosted private CI and publication approval remain pending.
+Sources for the **v1.5.0 local candidate (unreleased)**,
+based on public v1.4.0 at `18267ac0975f50e201c812db02d1c43cbb2d51ce`.
+**v1.5 is technically closed locally and feature frozen (2026-11-03).**
+See the [v1.5 technical notes](docs/releases/v1.5-diagnostic-readiness.md),
+[closure QA and limits](docs/qa/v1.5-technical-closure.md), historical
+[v1.4 notes](docs/releases/v1.4.0.md), [v1.3 notes](docs/releases/v1.3.0.md)
+and [changelog](CHANGELOG.md). See [v1.5.0 candidate notes](docs/releases/v1.5.0.md)
+for distribution and unresolved dependency decisions. Historical QA does not certify
+this candidate SHA. Publication remains blocked and unauthorized.
 
 This personal, independent project explores neutral multimedia engineering for experimentation and household use. It is a professional portfolio project with engineering direction and QA by Abraham Ferrero, developed with AI assistance. It is not officially affiliated with Stremio or Tribler. The public source release is available under [PolyForm Noncommercial 1.0.0](LICENSE).
 
@@ -15,6 +23,85 @@ and a native HTTP client without browser context headers. Administration is disa
 the variable is absent. Keep the secret in the process environment or a local secret manager;
 never pass it in installation/playback URLs. See [HTTP contracts](docs/http-api-contracts.md)
 and [security limits](SECURITY.md). Compatibility with other clients requires verification.
+
+## Local diagnostic CLI and reports
+
+From a configured checkout, run `npm run diagnostic` in one PowerShell console.
+It loads local `.env` values without overriding the environment, reuses an authorized
+compatible bridge or starts its own, and waits for Stremio stream requests. Defaults
+are anonymized, next 3 resolutions, 300 seconds, no browser launch. Quota, TTL,
+Enter or Ctrl+C finalize and export a unique HTML under ignored
+`.cache/diagnostic-reports/`; EOF does not finish capture. After quota, TTL or Enter,
+the recorder is OFF and an owned bridge keeps serving Stremio in the foreground until
+Ctrl+C. A reused bridge is never closed. Ctrl+C during capture exports before closing
+an owned bridge; after export it closes without another report. Export errors with
+capture confirmed OFF keep the owned service available for explicit recovery.
+The optional ignored
+[`config/diagnostic.local.json` format](docs/diagnostics.md#one-console-local-session)
+controls limits, output and browser opening. Private mode requires explicit local
+configuration or `--mode private`. Closing a Windows console with X is not a reliable
+save mechanism; use Ctrl+C and wait for the exported path.
+
+Try the complete synthetic flow without a bridge, token or real provider:
+
+```text
+npm run diagnostic -- demo
+```
+
+It runs an isolated in-memory resolver/controller and writes an offline HTML report
+under ignored `.cache/diagnostic-demo/`. Supported interactive terminals attempt to
+open the default browser; automation/unsupported sessions print opening instructions.
+The demo uses invented films and six synthetic providers: results, zero entries,
+disabled, failed and timed-out cases. It captures a real rejection and an unexplained
+disappearance through the resolver; it does not search remote providers. Its default
+private view includes invented titles/names. Use `demo --mode anonymized` to hide them.
+
+For real resolver observations, configure `BRIDGE_ADMIN_TOKEN` in the environment,
+start the local bridge, and choose an explicit output in an existing local directory:
+
+```text
+npm run diagnostic -- capture --mode private --output .cache/my-capture.html
+```
+
+Use Stremio normally. Capture defaults to the next 3 resolutions and a 300-second
+maximum; `--next 1..10` and `--ttl 1..300` customize it. Enter finishes early in an
+interactive terminal; Ctrl+C stops and exports (exit 130 after successful interruption cleanup). The command only
+polls administrative diagnostics and never requests providers or media itself.
+Existing output is never overwritten. Add `--lang es` to either workflow for Spanish.
+Real reports must stay outside Git. See the [workflow details and interruption limits](docs/diagnostics.md#simple-workflows).
+
+`--mode private` explicitly opts into bounded title/provider context, marked
+**PRIVATE LOCAL REPORT — DO NOT SHARE**. Without that option, capture is anonymized:
+titles are absent and providers use local labels such as Provider 1. Both views show
+source cards, provider outcomes/counts, observed rejection reasons and final resolver
+selection. UUIDs and score tables are expandable technical details. The report cannot
+confirm addon publication, receipt/display in Stremio or playback. Run commands from
+this v1.5 checkout against a bridge running this version; older instances lack the
+private administrative endpoints. See [US-1506 QA](docs/qa/us-1506-diagnostic-usability.md).
+
+Diagnostic capture is OFF by default. With the bridge running and `BRIDGE_ADMIN_TOKEN`
+already configured in the local environment, use `npm run diagnostic -- help` for commands.
+For example, `npm run diagnostic -- start --next 3 --ttl 60 --retain` arms capture for the
+next three resolver calls for up to 60 seconds. Resolve normally through Stremio, then use
+`status`, `stop` and `report`. Capture/report commands never initiate a separate resolver.
+
+Explicitly export with `npm run diagnostic -- export --format html --output .cache/report.html`
+or `--format json --output .cache/report.json`, using an existing ignored directory.
+Existing files are never overwritten. Retention is optional and requires `--retain` at start;
+the final report remains available in memory for at most five minutes.
+
+The diagnostic interface defaults to English. Add `--lang es` for Spanish CLI messages
+or `--lang en` for English. Commands, JSON fields, technical codes, identifiers and scores
+remain unchanged. HTML always opens in English and includes an **English / Español** selector
+that updates labels and accessibility text entirely offline. Language selection does not
+internationalize Stremio or providers. See [diagnostic commands, security limits and browser
+smoke instructions](docs/diagnostics.md). On PowerShell, use `npm.cmd` if npm.ps1 is restricted.
+
+v1.5 observes resolver stages, existing Identity decisions, evidence gaps and final
+ranking with six components. Playback correlation (US-1504) is deferred after its
+phase-0 NO-GO and is not a P0 release requirement. Playback remains UNOBSERVED;
+HTTP success and technical scores cannot certify audiovisual playback. Keep real
+reports outside Git, including manually exported copies.
 
 ## Architecture
 

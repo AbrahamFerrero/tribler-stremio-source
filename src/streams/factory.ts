@@ -9,7 +9,7 @@ import { StremioAddonStreamProvider } from "./providers/stremio-addon-stream-pro
 import { CatalogStreamProvider } from "./providers/catalog-stream-provider";
 import { LocalJsonStreamProvider } from "./providers/local-json-stream-provider";
 import { ManualStreamProvider } from "./providers/manual-stream-provider";
-import { StreamProviderRegistry, StreamResolver, type StreamResolverTrace } from "./resolver";
+import { StreamProviderRegistry, StreamResolver, type StreamResolverObservation, type StreamResolverTrace } from "./resolver";
 import { DirectStreamProbe } from "./direct-stream-probe";
 import { loadStremioAddonConfigs } from "./stremio-addon-config";
 
@@ -42,7 +42,8 @@ export function createStreamResolver(
   policy: ExternalUrlPolicy,
   transport?: OutboundTransport,
   identityResolver = new AddonRequestIdentityResolver(),
-  trace?: StreamResolverTrace
+  trace?: StreamResolverTrace,
+  observe?: () => StreamResolverObservation | undefined
 ): StreamResolver {
   const registry = new StreamProviderRegistry(
     config.streamProviderTimeoutMs,
@@ -107,5 +108,5 @@ export function createStreamResolver(
     }
   }
   const directProbe = transport ? new DirectStreamProbe(transport, config.directHttpProbe, log) : undefined;
-  return new StreamResolver(registry, policy, directProbe, trace, config.streamRankingPolicy, config.streamMaxResultsPerProvider);
+  return new StreamResolver(registry, policy, directProbe, trace, config.streamRankingPolicy, config.streamMaxResultsPerProvider, observe);
 }

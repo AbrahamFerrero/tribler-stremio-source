@@ -1,5 +1,42 @@
 # Future work
 
+## v1.5 technical closure and subsequent debt
+
+The v1.5.0 local source candidate implements bounded resolver capture, observed
+decisions/gaps, final ranking, a local administrative CLI and offline JSON/HTML
+export with English defaults and Spanish labels. See [scope and readiness](docs/releases/v1.5-diagnostic-readiness.md).
+US-1506 adds a human-readable search/provider/source view, call-local registry evidence
+and explicitly opted-in bounded private context; anonymous reporting remains the default.
+US-1507 Trace Workbench, lifecycle corrections, private declaration/omission detail,
+and technical contracts v1–v7 are implemented. **Local technical closure: GO,
+feature frozen, 2026-11-03.** See [closure QA](docs/qa/v1.5-technical-closure.md).
+Earlier product-review suspensions are historical, not unfinished implementation.
+Publication remains unauthorized and NO-GO pending candidate-specific dependency
+decisions and hosted CI. See [candidate notes](docs/releases/v1.5.0.md).
+
+**US-1504 is deferred and is not a P0 closure prerequisite.** Its
+[phase-0 NO-GO](docs/qa/us-1504-playback-feasibility.md) identified a missing
+post-resolution authority/handoff contract. No proposed alternate channel was
+implemented. All playback correlation remains UNOBSERVED; any future channel needs
+separate scope, lifecycle/budget/schema review and regression evidence. No
+post-resolution HLS/Tribler playback instrumentation, live dashboard or telemetry
+is implied. Bounded resolver-side HLS verification failure detail is already delivered.
+
+Exact-SHA candidate verification, hosted CI, Linux validation and publication
+review require current evidence and separately authorized remote execution. Local QA does not reopen or close PR6, R-020 or Identity STRICT.
+
+Possible v1.5.1: **Direct Media Admission — Content Signature Investigation**.
+Observed limitation: opaque HTTP(S) locators with generic binary MIME, HTTP 206 and
+valid Range can be rejected despite a provider's declared video file. Transport
+verification does not establish reproducibility. Next step, independently scoped:
+READ-ONLY investigation of safe MP4/Matroska recognition from bytes already available.
+No change to admission, requests, probes or policy is authorized by this closure.
+
+Keep separate: HTTP 428 handling (existing deterministic rejection is retained),
+remaining movie-year conflicts (the delivered adjacent-year/title ambiguity fix
+does not resolve all conflicts), generic Identity rejections without finer cause,
+PR6/Identity STRICT and Playback Resilience. None starts a new investigation here.
+
 ## v1.3 status and deferred decisions
 
 v1.3.0 is the public source release dated 2026-10-20. This file separates current debt from delivered mechanisms. It does not authorize another QA campaign. See [v1.3 notes](docs/releases/v1.3.0.md) for its supported scope.
@@ -153,18 +190,11 @@ synthetic funnel and [existing smoke bounds](docs/qa/identity/IDENTITY_LIVE_SMOK
 for diagnostic evidence limits. D2b worker timings are not normal `external_http`
 request latency.
 
-## v1.4 candidate decisions pending
+## v1.4 historical publication and retained debt
 
-v1.4.0 is a local source candidate continuing the published v1.3.0 history.
-Final Identity ranking, opt-in F details, validated metadata/seeds and corrected
-size/header-latency semantics are implemented; the public transformed tree
-still requires candidate QA. Historical US-1403 technical closure and Windows
-Quality 4/4 PASS do not certify that tree. Earlier intermittent failures retain
-an undetermined environmental cause. See the [QA summary](docs/qa/v1.4-release-qa.md).
-
-Identity STRICT is pending and PR6 remains open; R-020 remains open.
-The v1.3 risk decisions recorded above keep their historical scope. In
-particular, the changed lockfile and coverage consumer require an explicit
-v1.4 tooling-risk decision or a verified correction before publication. No
-dependency update or new risk acceptance is made in this preparation. See the
-[proposal](docs/dependency-security-review.md#v14-source-candidate-risk-proposal--2026-10-24).
+v1.4.0 was published as source on 2026-10-24 in the public source repository,
+commit `18267ac0975f50e201c812db02d1c43cbb2d51ce`. Historical US-1403 and
+private QA retain their original scope; they are not new v1.5 evidence.
+Identity STRICT, PR6 and R-020 remain open. The v1.4 tooling acceptance is
+historical, does not transfer to v1.5, and does not establish remediation.
+See the [current review](docs/dependency-security-review.md#v150-candidate-review--2026-11-03).
