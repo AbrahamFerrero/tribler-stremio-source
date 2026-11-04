@@ -1,6 +1,6 @@
 {
   "name": "tribler-stremio-bridge",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "private": true,
   "description": "Local Stremio addon that streams torrents through Tribler's REST API",
   "license": "PolyForm-Noncommercial-1.0.0",

@@ -2,10 +2,55 @@
 
 **2026-11-03: local technical scope closed; feature frozen.** Current evidence is
 the [closure QA](qa/v1.5-technical-closure.md) and [technical release notes](releases/v1.5-diagnostic-readiness.md).
-The v1.5.0 local source candidate is unreleased; publication is blocked and not authorized.
-See [candidate notes](releases/v1.5.0.md); historical closure QA is not exact-SHA QA.
+The v1.5.1 source candidate is unreleased; publication requires explicit approval.
+See [candidate notes](releases/v1.5.1.md); historical QA is not final-candidate QA.
 
-## Direct video admission evidence (technical v7)
+## Structural container admission (technical v8)
+
+`DIRECT_MEDIA_SIGNATURE` records admission by bounded structural evidence, not
+verified video tracks, codecs, audiovisual identity or sustained playback. It is
+emitted instead of the historical `DIRECT_MEDIA` event only when the new admission
+path actually wins. Existing name/MIME admission observations retain v7 semantics.
+
+The exact event fields are `kind`, `stage` (`ADMITTED`), internal `candidate`
+(exported as an opaque `candidateId`), `container` (`mp4` or `matroska`), `mime`
+(`application/octet-stream`), `response` (206), `range` (true) and `verified` (true).
+No sample bytes, arbitrary brands, names, locators, headers or free text are
+retained in this event. Reports become v8 only after this event is stored; later
+v7 observations cannot downgrade them. Versions 1–7 remain readable and reject
+the new event. A v8 document without an actual signature event is invalid. The
+private envelope remains v1. Capture defaults, event/byte/candidate/TTL/export
+limits and operational logs are unchanged. OFF allocates no new capture detail.
+
+Admission requires the existing probe's identity-encoded, coherent initial 206:
+`Content-Range` starts at zero and ends at most at 63, its total is a safe integer
+greater than the end, the observed prefix matches that interval, and a present
+`Content-Length` matches it. Missing encoding or `identity` is supported; compressed
+responses, observed excess bytes and inconsistent lengths do not qualify. The
+reader still stops and cancels at its existing limit; this is not a full-body
+length or integrity certificate. MIME absent/malformed, other MIME and HTTP 200
+gain no new admission path. Normalization, Identity, deterministic security and
+probe rejections, HLS requirements and budgets retain precedence.
+
+The pure recognizer uses at most the same 64 bytes. MP4 requires a complete normal
+`ftyp`, allowed brands (`isom`, `iso2`, `avc1`, `mp41`, `mp42`), an explicit `mp41`
+or `mp42` brand and a coherent following `moov`/`mdat` header. Extended/EOF-sized
+boxes, unknown brands and incomplete structures remain unrecognized. Matroska
+requires a complete finite EBML header with exactly the seven supported fields:
+EBMLVersion/EBMLReadVersion 1, maximum ID length 4, maximum size length 1–8,
+DocType exactly `matroska`, DocTypeVersion 1–4 and a compatible DocTypeReadVersion.
+Duplicates, unsupported fields/versions and invalid VINTs fail closed. A following
+Segment header is required; its size may be a coherent finite value or the EBML
+unknown-size marker. WebM is not admitted by this path. Valid files outside this
+deliberately small subset can still be rejected.
+
+Only a closed container enum is added to the existing in-memory probe metadata
+and cache. HMAC keys, TTL, capacity, scheduler, timeouts, recipients and requests
+are unchanged. The existing MP4 duration reader keeps its original triggers and
+auxiliary requests; signature recognition never initiates or completes a read.
+Timeout/cancellation cannot be rescued by an earlier recognizable prefix.
+
+## Direct video admission evidence (technical v7, retained)
 
 Opt-in diagnostic captures now record a bounded `DIRECT_MEDIA` event at admission
 evaluation for direct non-HLS sources that reach the video-name/MIME decision.

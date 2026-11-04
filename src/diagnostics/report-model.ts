@@ -30,11 +30,11 @@ export function validateDiagnosticReport(input: unknown): DiagnosticReport {
   try {
     const r = record(input);
     exact(r, ["version", "id", "state", "reason", "reserved", "skippedConcurrent", "events", "resolutions"]);
-    if ((r.version !== 1 && r.version !== 2 && r.version !== 3 && r.version !== 4 && r.version !== 5 && r.version !== 6 && r.version !== 7) || !diagnosticId(r.id) || typeof r.state !== "string" || !["CLOSED", "TRUNCATED"].includes(r.state) ||
+    if ((r.version !== 1 && r.version !== 2 && r.version !== 3 && r.version !== 4 && r.version !== 5 && r.version !== 6 && r.version !== 7 && r.version !== 8) || !diagnosticId(r.id) || typeof r.state !== "string" || !["CLOSED", "TRUNCATED"].includes(r.state) ||
         typeof r.reason !== "string" || !["STOPPED", "EXPIRED", "RECORDER_FAILURE"].includes(r.reason) || !integer(r.reserved, L.resolutions) ||
         !integer(r.skippedConcurrent, r.reserved) || !integer(r.events, L.sessionEvents)) return fail();
     const version = r.version;
-    const ids = new Set<string>(); let count = 0; let truncated = r.skippedConcurrent > 0 || r.reason === "RECORDER_FAILURE";
+    const ids = new Set<string>(); let count = 0; let signatureObserved = false; let truncated = r.skippedConcurrent > 0 || r.reason === "RECORDER_FAILURE";
     const resolutions = array(r.resolutions, r.reserved).map(value => {
       const d = record(value); exact(d, ["id", "state", "events"]);
       if (!diagnosticId(d.id) || ids.has(d.id) || typeof d.state !== "string" || !["CLOSED", "TRUNCATED"].includes(d.state)) return fail();
@@ -60,8 +60,9 @@ export function validateDiagnosticReport(input: unknown): DiagnosticReport {
         if (!safe || (version < 3 && safe.kind === "EXCLUSION") || (version < 4 && safe.kind === "PROVIDER_FAILURE")
           || (version < 5 && safe.kind === "EXCLUSION" && safe.probeCause !== undefined)
           || (version < 6 && safe.kind === "EXCLUSION" && safe.hlsCause !== undefined)
-          || (version < 7 && safe.kind === "DIRECT_MEDIA")) return fail();
+          || (version < 7 && safe.kind === "DIRECT_MEDIA") || (version < 8 && safe.kind === "DIRECT_MEDIA_SIGNATURE")) return fail();
         if (r.version === 1 && ["REQUEST", "PROVIDER_STATE", "PROVIDER_COUNTS", "SOURCE"].includes(safe.kind)) return fail();
+        if (safe.kind === "DIRECT_MEDIA_SIGNATURE") signatureObserved = true;
         count++; if (count > L.sessionEvents) return fail();
         if ("candidate" in safe) {
           if (candidateId === undefined) return fail();
@@ -74,7 +75,7 @@ export function validateDiagnosticReport(input: unknown): DiagnosticReport {
       });
       return { id: d.id, state: d.state as "CLOSED" | "TRUNCATED", events };
     });
-    if (count !== r.events || (truncated && r.state !== "TRUNCATED")) return fail();
+    if (count !== r.events || (truncated && r.state !== "TRUNCATED") || (version === 8 && !signatureObserved)) return fail();
     const report: DiagnosticReport = { version: r.version, id: r.id, state: r.state as DiagnosticReport["state"],
       reason: r.reason as DiagnosticReport["reason"], reserved: r.reserved, skippedConcurrent: r.skippedConcurrent, events: r.events, resolutions };
     if (Buffer.byteLength(JSON.stringify(report)) > L.dtoBytes) return fail();

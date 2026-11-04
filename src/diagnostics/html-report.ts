@@ -99,7 +99,7 @@ export const diagnosticReportScript = String.raw`"use strict";
     text(panel, "strong", v.final ? dict.selectedSource : v.rejection ? dict.explicitRejected + ": " + label(v.rejection.reason) : v.gap ? dict.unknownDisappearance : dict.observationUnavailable);
     if (v.rejection && v.rejection.kind === "EXCLUSION" && v.rejection.reason === "DETERMINISTIC_PROBE_REJECTION") text(panel, "p", probeEvidence(v.rejection));
     if (v.rejection && v.rejection.kind === "EXCLUSION" && v.rejection.reason === "HLS_NOT_VERIFIED") text(panel, "p", hlsEvidence(v.rejection));
-    const direct = v.events.filter(e => e.kind === "DIRECT_MEDIA").at(-1);
+    const direct = v.events.filter(e => e.kind === "DIRECT_MEDIA" || e.kind === "DIRECT_MEDIA_SIGNATURE").at(-1);
     if (direct) { text(panel, "p", directEvidence(direct)); text(panel, "p", dict.directMediaNotice); }
     else if (v.rejection && v.rejection.reason === "DIRECT_MEDIA_NOT_VERIFIED") text(panel, "p", dict.directMediaNotCaptured);
     text(panel, "p", dict.stagesReached + ": " + (v.reached.map(label).join(" → ") || dict.UNOBSERVED));
@@ -149,7 +149,7 @@ export const diagnosticReportScript = String.raw`"use strict";
     return dict.probeCause + ": " + detail;
   }
   function eventDetails(e) {
-    if (e.kind === "DIRECT_MEDIA") return directEvidence(e);
+    if (e.kind === "DIRECT_MEDIA" || e.kind === "DIRECT_MEDIA_SIGNATURE") return directEvidence(e);
     const details = Object.entries(e).filter(([key]) => !["candidateId", "kind", "probeCause", "httpStatus", "hlsPhase", "hlsCause"].includes(key))
       .map(([key, val]) => label(key) + ": " + value(key, val));
     if (e.kind === "EXCLUSION" && e.reason === "DETERMINISTIC_PROBE_REJECTION") details.push(probeEvidence(e));
@@ -162,6 +162,9 @@ export const diagnosticReportScript = String.raw`"use strict";
     return dict.hlsFailureDetail + ": " + (e.hlsPhase ? label(e.hlsPhase) : dict.hlsPhaseNotCaptured) + " · " + cause;
   }
   function directEvidence(e) {
+    if (e.kind === "DIRECT_MEDIA_SIGNATURE") return label(e.kind) + ": "
+      + ["container", "mime", "response", "range", "verified"].map(key => label(key) + ": " + value(key, e[key])).join("; ")
+      + "; " + dict.signatureNotice;
     return label("DIRECT_MEDIA") + ": " + ["filename", "urlName", "mime", "media", "mediaCause", "response", "range", "verified"].map(key => label(key) + ": " + (key === "media" && e[key] === "ADMITTED" ? dict.directMediaAdmitted : value(key, e[key]))).join("; ")
       + "; " + dict.probe + ": " + label(e.transport);
   }

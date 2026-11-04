@@ -90,6 +90,8 @@ export type HlsFailureCause = "HTTP_RESPONSE" | "EMPTY_BODY" | "MANIFEST_TOO_LAR
 export interface HlsFailureEvidence { phase?: HlsFailurePhase; cause: HlsFailureCause; httpStatus?: number }
 
 export interface DirectHttpProbeMetadata {
+  /** Probe-owned structural evidence from a coherent identity-encoded initial 206. Never raw bytes. */
+  containerSignature?: import("./direct-media-signature").DirectMediaSignature;
   hlsFailure?: HlsFailureEvidence;
   status: DirectHttpProbeStatus;
   verified: boolean;

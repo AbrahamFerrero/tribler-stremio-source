@@ -6,6 +6,7 @@ import type { OutboundTransport } from "../src/network/outbound-transport";
 import type { NormalizedStreamSource } from "../src/streams/types";
 import { fixtureOutboundRequest, silentLogger, type FixtureOutboundRequest } from "./helpers";
 import { mp4Fixture } from "./mp4-fixture";
+import { matroskaPrefix } from "./direct-media-trace-fixture";
 
 const source = (name: string, providerId = "a"): NormalizedStreamSource => ({
   providerId, type: "https", url: `https://media.example/${name}.mp4`
@@ -21,6 +22,26 @@ function fixture(request: FixtureOutboundRequest, options = { maxCandidates: 48,
 }
 
 describe("cache-first direct probing (synthetic component fixtures)", () => {
+  it("retains only a signature enum across HMAC-separated cache hits and unchanged expiry", async () => {
+    let now = 0;
+    const prefix = Buffer.from(matroskaPrefix()); prefix.write("RAW-SECRET-CANARY", 45);
+    const request = vi.fn<FixtureOutboundRequest>().mockImplementation(() => Promise.resolve(new Response(prefix,
+      { status: 206, headers: { "Content-Type": "application/octet-stream", "Content-Range": "bytes 0-63/1000000" } })));
+    const probe = fixture(request, { maxCandidates: 1, maxConcurrent: 1, timeoutMs: 1000 }, () => now);
+    const input: NormalizedStreamSource = { providerId: "a", type: "https", url: "https://media.example/opaque?token=URL-SECRET-CANARY",
+      requestHeaders: { Accept: "HEADER-SECRET-CANARY" } };
+    const cold = (await probe.probe([input]))[0]!.directHttp;
+    expect(cold?.containerSignature).toBe("matroska");
+    now = 119999; expect((await probe.probe([input]))[0]!.directHttp).toEqual(cold); expect(request).toHaveBeenCalledTimes(1);
+    const changed = { ...input, requestHeaders: { Accept: "different" } };
+    await probe.probe([changed]); expect(request).toHaveBeenCalledTimes(2);
+    now = 120000; await probe.probe([input]); expect(request).toHaveBeenCalledTimes(3);
+    const cache = (probe as unknown as { cache: Map<string, unknown> }).cache;
+    const serialized = JSON.stringify([...cache]);
+    for (const canary of ["RAW-SECRET-CANARY", "URL-SECRET-CANARY", "HEADER-SECRET-CANARY", "media.example"])
+      expect(serialized).not.toContain(canary);
+    expect(serialized).toContain('"containerSignature":"matroska"'); expect(input.directHttp).toBeUndefined();
+  });
   it("recovers HTTP and HTTPS beyond the cut while retaining all 48 new slots and provider turns", async () => {
     const request = vi.fn<FixtureOutboundRequest>().mockImplementation(() => Promise.resolve(verified()));
     const probe = fixture(request);

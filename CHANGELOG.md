@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.5.1] - Unreleased
+
+- Admit a bounded structural MP4/Matroska subset from the existing initial probe
+  bytes, only for opaque octet-stream sources with coherent verified HTTP 206.
+- Add minimized diagnostic v8 signature events; retain historical v1–v7 reading.
+- Handle duplicate-case Windows environment names in the Python launcher while
+  preserving child isolation and rejecting conflicting allowed values.
+- Keep probe budgets, transport/security policies, Identity, ranking and HLS.
+  Container evidence does not verify identity, codecs, tracks or playback.
+- Keep existing development dependency risks open; no dependency remediation or
+  new acceptance is claimed. See [candidate notes](docs/releases/v1.5.1.md).
+
 ## [1.5.0] - Unreleased
 
 Local source candidate continuing public v1.4.0; feature frozen. Publication is

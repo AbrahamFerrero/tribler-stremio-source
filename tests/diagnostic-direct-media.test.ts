@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { directMediaFixture, scenarios } from "./direct-media-trace-fixture";
+import { directMediaFixture, matroskaPrefix, scenarios } from "./direct-media-trace-fixture";
 import { DiagnosticController } from "../src/diagnostics/controller";
 import { projectDiagnosticEvent, type DiagnosticEvent } from "../src/diagnostics/events";
 import { validateDiagnosticReport } from "../src/diagnostics/report-model";
@@ -8,6 +8,93 @@ import { renderDiagnosticHtml } from "../src/diagnostics/html-report";
 import { diagnosticReportDom } from "./diagnostic-dom-harness";
 import { DirectStreamProbe } from "../src/streams/direct-stream-probe";
 import { DIAGNOSTIC_LIMITS as L } from "../src/diagnostics/recorder";
+import { mp4Fixture } from "./mp4-fixture";
+
+describe("v8 structural admission", () => {
+  it.each(["mp4", "matroska"] as const)("admits only the qualified %s container without changing the initial request", async container => {
+    const prefix = container === "mp4" ? mp4Fixture(600).subarray(0, 64) : matroskaPrefix();
+    const off = await directMediaFixture({ prefix, mime: "application/octet-stream" }, "off");
+    expect(off.requests).toEqual([{ url: "https://media.example/opaque-private-canary?signature=query-private-canary", method: "GET", range: "bytes=0-63",
+      headers: { accept: "*/*", "accept-encoding": "identity", range: "bytes=0-63" } }]);
+    expect(off.cancellations).toBe(0); // Fixture already closed; reader.cancel still runs.
+    expect(off.result).toHaveLength(1);
+    for (const mode of ["anonymous", "private"] as const) {
+      const run = await directMediaFixture({ prefix, mime: "application/octet-stream" }, mode);
+      expect(run.requests).toEqual(off.requests); expect(run.cancellations).toBe(off.cancellations);
+      expect(run.result).toEqual(off.result);
+      const report = validateDiagnosticReport(run.c.report());
+      expect(report.version).toBe(8);
+      expect(report.resolutions[0]!.events).toContainEqual(expect.objectContaining({ kind: "DIRECT_MEDIA_SIGNATURE", container,
+        stage: "ADMITTED", mime: "application/octet-stream", response: 206, range: true, verified: true }));
+      expect(report.resolutions[0]!.events.some(e => e.kind === "DIRECT_MEDIA")).toBe(false);
+    }
+  });
+  it("preserves warm admission and withholds binary, header, filename and exception canaries", async () => {
+    const prefix = Buffer.from(matroskaPrefix()); prefix.write("RAW-SECRET-CANARY", 45);
+    for (const warm of [false, true]) for (const mode of ["off", "anonymous", "private"] as const) {
+      const run = await directMediaFixture({ prefix, warm, mime: "application/octet-stream; token=MIME-SECRET-CANARY",
+        headers: { "Set-Cookie": "COOKIE-SECRET-CANARY", "X-Canary": "HEADER-SECRET-CANARY" },
+        filename: "filename-private-canary.bin", source: { title: "token=TITLE-SECRET-CANARY", name: "cookie=NAME-SECRET-CANARY",
+          requestHeaders: { Cookie: "SOURCE-COOKIE-CANARY", Authorization: "Bearer AUTH-SECRET-CANARY" },
+          metadata: { sample: "METADATA-SECRET-CANARY" } } }, mode);
+      expect(run.result).toHaveLength(1); expect(run.requests).toHaveLength(1);
+      expect(run.result[0]!.directHttp?.containerSignature).toBe("matroska");
+      const privateResult = run.c.readPrivateReport();
+      const report = mode === "private" && privateResult.state === "AVAILABLE" ? privateResult.report : run.c.report();
+      const publicReport = run.c.report();
+      const outputs = [JSON.stringify(run.logs), JSON.stringify(run.result[0]!.directHttp), JSON.stringify(run.requests[0]!.headers)];
+      if (mode !== "off") {
+        outputs.push(JSON.stringify(report), renderDiagnosticHtml(report), JSON.stringify(anonymizeDiagnosticExport(report)));
+        expect(validateDiagnosticReport(publicReport).version).toBe(8);
+      } else expect(publicReport).toBeUndefined();
+      for (const out of outputs) for (const secret of ["RAW-SECRET-CANARY", "MIME-SECRET-CANARY", "COOKIE-SECRET-CANARY",
+        "HEADER-SECRET-CANARY", "TITLE-SECRET-CANARY", "NAME-SECRET-CANARY", "SOURCE-COOKIE-CANARY", "AUTH-SECRET-CANARY", "METADATA-SECRET-CANARY",
+        "opaque-private-canary", "query-private-canary", "filename-private-canary"]) expect(out).not.toContain(secret);
+      if (mode !== "off") {
+        const dom = diagnosticReportDom(renderDiagnosticHtml(report)); dom.ids.get("sources-human")!.children[0]!.children[0]!.children[0]!.click();
+        expect(dom.ids.get("source-inspector")!.textContent).toContain("Admitted by structural container signature");
+        expect(dom.ids.get("source-inspector")!.textContent).toContain("sustained playback are not verified");
+        dom.ids.get("language")!.value = "es"; dom.ids.get("language")!.change();
+        expect(dom.ids.get("source-inspector")!.textContent).toContain("Admitido por firma estructural del contenedor");
+      }
+    }
+  });
+});
+
+const signature: DiagnosticEvent = { kind: "DIRECT_MEDIA_SIGNATURE", stage: "ADMITTED", candidate: 0,
+  container: "mp4", mime: "application/octet-stream", response: 206, range: true, verified: true };
+describe("strict v8 contract", () => {
+  it("rejects extra fields, accessors and incompatible observations without invoking getters", () => {
+    expect(projectDiagnosticEvent(signature)).toEqual(signature);
+    for (const patch of [{ container: "webm" }, { container: "private" }, { stage: "PROBED" }, { response: 200 },
+      { range: false }, { verified: false }, { mime: "video/mp4" }, { candidate: -1 }, { sample: "secret" }, { url: "secret" }]) {
+      expect(projectDiagnosticEvent({ ...signature, ...patch } as DiagnosticEvent)).toBeUndefined();
+    }
+    for (const key of Object.keys(signature)) {
+      const get = vi.fn(() => "secret");
+      expect(projectDiagnosticEvent(Object.defineProperty({ ...signature }, key, { get }))).toBeUndefined();
+      expect(get).not.toHaveBeenCalled();
+    }
+  });
+  it("retains v8 across later v7 events and rejects forged report versions", () => {
+    const c = new DiagnosticController(); c.start({ ttlMs: 1000, resolutions: 1, retainReport: true }); const h = c.beginResolution()!;
+    h.record(signature); h.record(good); h.finish(); c.stop(); const r = validateDiagnosticReport(c.report());
+    expect(r.version).toBe(8);
+    for (const version of [1, 2, 3, 4, 5, 6, 7, 9]) expect(() => validateDiagnosticReport({ ...r, version })).toThrow();
+    const empty = { ...r, events: 0, resolutions: r.resolutions.map(x => ({ ...x, events: [] })) };
+    expect(() => validateDiagnosticReport(empty)).toThrow();
+    for (const version of [1, 2, 3, 4, 5, 6, 7]) expect(validateDiagnosticReport({ ...empty, version }).version).toBe(version);
+  });
+  it("does not promote a dropped signature and revokes late writes at the same TTL", () => {
+    let now = 0; const c = new DiagnosticController(() => now); c.start({ ttlMs: 1000, resolutions: 1, retainReport: true }); const h = c.beginResolution()!;
+    for (let i = 0; i < L.resolutionEvents; i++) h.record({ kind: "STAGE", stage: "PROVIDER", count: 1 });
+    h.record(signature); h.finish(); c.stop(); const r = validateDiagnosticReport(c.report());
+    expect(r.version).toBe(1); expect(r.events).toBe(L.resolutionEvents); expect(r.state).toBe("TRUNCATED");
+    const next = new DiagnosticController(() => now); next.start({ ttlMs: 1000, resolutions: 1, retainReport: true }); const n = next.beginResolution()!;
+    n.record(signature); now = 1000; expect(n.isActive()).toBe(false); const expired = validateDiagnosticReport(next.report());
+    expect(expired.version).toBe(8); n.record(good); expect(next.report()).toEqual(expired);
+  });
+});
 
 
 

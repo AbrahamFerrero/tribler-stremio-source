@@ -9,6 +9,8 @@ export type DiagnosticLanguage = "en" | "es";
 type StringValues<T> = T extends unknown ? { [K in keyof T]-?: Extract<T[K], string> }[keyof T] : never;
 type DiagnosticCode = StringValues<DiagnosticEvent> | DiagnosticReport["state"] | DiagnosticReport["reason"] | "ON" | "OFF" | "OPEN";
 const en = {
+  DIRECT_MEDIA_SIGNATURE: "Admitted by structural container signature", container: "Observed container", matroska: "Matroska",
+  signatureNotice: "Bounded structural evidence only; video tracks, codecs, Identity and sustained playback are not verified.",
   ...canonicalMediaLabels,
   REJECTED: "Rejected by admission", MALFORMED: "Malformed MIME; literal withheld",
   DIRECT_MEDIA: "Direct video admission evidence", filename: "Structured filename recognition", urlName: "URL pathname recognition", mime: "Observed MIME", media: "Direct video admission", mediaCause: "Direct video admission condition", response: "Root HTTP status (0: unobserved)", range: "Valid Range observed",
@@ -102,6 +104,8 @@ const en = {
 } satisfies Record<DiagnosticCode, string> & Record<string, string>;
 export type DiagnosticDictionary = { [K in keyof typeof en]: string };
 const es: DiagnosticDictionary = {
+  DIRECT_MEDIA_SIGNATURE: "Admitido por firma estructural del contenedor", container: "Contenedor observado", matroska: "Matroska",
+  signatureNotice: "Solo evidencia estructural acotada; no verifica pistas de vídeo, codecs, Identity ni reproducción sostenida.",
   ...canonicalMediaLabels,
   REJECTED: "Rechazado en admisión", MALFORMED: "MIME malformado; literal oculto",
   DIRECT_MEDIA: "Evidencia de admisión de vídeo directo", filename: "Reconocimiento de filename estructurado", urlName: "Reconocimiento del pathname URL", mime: "MIME observado", media: "Admisión de vídeo directo", mediaCause: "Condición de admisión de vídeo directo", response: "Estado HTTP raíz (0: no observado)", range: "Range válido observado",

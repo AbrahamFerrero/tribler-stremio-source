@@ -1,5 +1,15 @@
 # Future work
 
+## v1.5.1 release preparation
+
+US-1511 implementation is retained in the v1.5.1 candidate. US-1512 remains open
+at the [release checkpoint](docs/qa/us-1512-release-checkpoint.md); publication is
+NO-GO pending candidate-specific dependency decisions, required hosted CI
+and explicit owner authorization. The owner-supplied external section E has been
+applied in the checkpoint. Earlier v1.5.0 results
+and risk acceptances do not certify v1.5.1. Dependency replacement research is
+reserved for possible v1.5.2 work.
+
 ## v1.5 technical closure and subsequent debt
 
 The v1.5.0 local source candidate implements bounded resolver capture, observed

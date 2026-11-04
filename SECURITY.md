@@ -171,6 +171,11 @@ repository permissions and does not require secrets.
 
 ## v1.5.0 dependency decision boundary
 
+This section is historical for v1.5.0. The v1.5.1 candidate requires independent
+decisions; see the [v1.5.1 proposal](docs/dependency-security-review.md#v151-candidate-proposal--2026-11-04)
+and [release checkpoint](docs/qa/us-1512-release-checkpoint.md). No acceptance is
+transferred and no failing audit or CI gate is silently waived.
+
 The qs override is patched to 6.16.1. Development-only minimatch audit entries
 and the executable source-map-js 1.2.1 copy inside magicast 0.5.5 remain unresolved.
 Historical v1.4 acceptance retains its scope. Separate temporary owner

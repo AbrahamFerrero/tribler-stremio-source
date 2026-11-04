@@ -13,7 +13,7 @@ export interface DiagnosticCapture {
   isActive(): boolean;
 }
 export interface DiagnosticReport {
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   id: string;
   state: "CLOSED" | "TRUNCATED";
   reason: "STOPPED" | "EXPIRED" | "RECORDER_FAILURE";
@@ -23,7 +23,7 @@ export interface DiagnosticReport {
   resolutions: ResolutionReport[];
 }
 interface Session {
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   context?: Map<string, PrivateResolutionContext>;
   id: string;
   options: DiagnosticStart;
@@ -157,7 +157,8 @@ export class DiagnosticController {
         s.events++; s.bytes += bytes; recorded = true; return true;
       });
       const kind: unknown = Object.getOwnPropertyDescriptor(event, "kind")?.value;
-      if (recorded && kind === "DIRECT_MEDIA") s.version = 7;
+      if (recorded && kind === "DIRECT_MEDIA_SIGNATURE") s.version = 8;
+      else if (recorded && kind === "DIRECT_MEDIA" && s.version < 7) s.version = 7;
       else if (recorded && kind === "EXCLUSION" && Object.hasOwn(event, "hlsCause") && s.version < 6) s.version = 6;
       else if (recorded && kind === "EXCLUSION" && Object.hasOwn(event, "probeCause") && s.version < 5) s.version = 5;
       else if (kind === "PROVIDER_FAILURE" && s.version < 4) s.version = 4;

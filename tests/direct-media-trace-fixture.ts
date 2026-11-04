@@ -5,34 +5,43 @@ import { StreamProviderRegistry, StreamResolver } from "../src/streams/resolver"
 import { ExternalUrlPolicy } from "../src/network/url-policy";
 import { fixtureOutboundRequest, silentLogger } from "./helpers";
 
-export interface MediaScenario { status?: number; mime?: string; path?: string; filename?: string; range?: string; error?: boolean; retry?: boolean; budget?: boolean; cancel?: boolean; warm?: boolean }
+/** Synthetic complete EBML header and Segment; no provider media. */
+export function matroskaPrefix(): Uint8Array {
+  return Buffer.concat([Buffer.from("1a45dfa3a34286810142f7810142f2810442f38108428288", "hex"),
+    Buffer.from("matroska"), Buffer.from("428781044285810218538067a0", "hex"), Buffer.alloc(19)]);
+}
+
+export interface MediaScenario { status?: number; mime?: string | undefined; path?: string; filename?: string; range?: string; error?: boolean; retry?: boolean; budget?: boolean; cancel?: boolean; warm?: boolean;
+  prefix?: Uint8Array; headers?: Record<string, string>; source?: Record<string, unknown> }
 export async function directMediaFixture(scenario: MediaScenario, mode: "off" | "anonymous" | "private", Resolver = StreamResolver, Probe = DirectStreamProbe) {
   const c = new DiagnosticController();
   const parent = new AbortController();
-  const requests: Array<{ url: string; method: string; range: string | null }> = [];
+  const requests: Array<{ url: string; method: string; range: string | null; headers: Record<string, string> }> = [];
   let cancellations = 0;
+  const logs: unknown[] = [];
+  const log = Object.fromEntries(Object.keys(silentLogger).map(level => [level, (message: string, context?: unknown) => { logs.push({ level, message, context }); }])) as typeof silentLogger;
   const request = fixtureOutboundRequest(({ url, headers, method }, signal) => {
-    requests.push({ url, method: method ?? "GET", range: new Headers(headers).get("range") });
+    requests.push({ url, method: method ?? "GET", range: new Headers(headers).get("range"), headers: Object.fromEntries(new Headers(headers)) });
     if (scenario.budget || scenario.cancel) return new Promise<never>((_resolve, reject) => {
       signal?.addEventListener("abort", () => { cancellations++; reject(signal.reason instanceof Error ? signal.reason : new Error("synthetic-abort")); }, { once: true });
       if (scenario.cancel) queueMicrotask(() => parent.abort(new Error("exception-private-canary")));
     });
     if (scenario.error) return Promise.reject(new Error("exception-private-canary"));
     if (scenario.retry && requests.length === 1) return Promise.resolve(new Response(null, { status: 416 }));
-    const responseHeaders = new Headers();
+    const responseHeaders = new Headers(scenario.headers);
     if (scenario.mime !== undefined) responseHeaders.set("Content-Type", scenario.mime);
     const status = scenario.status ?? 206;
-    if (status === 206) responseHeaders.set("Content-Range", scenario.range ?? "bytes 0-15/100");
+    if (status === 206) responseHeaders.set("Content-Range", scenario.range ?? (scenario.prefix ? `bytes 0-${scenario.prefix.length - 1}/1000000` : "bytes 0-15/100"));
     return Promise.resolve(new Response(new ReadableStream<Uint8Array>({
-      start(controller) { controller.enqueue(new Uint8Array(16)); controller.close(); }, cancel() { cancellations++; }
+      start(controller) { controller.enqueue(scenario.prefix ?? new Uint8Array(16)); controller.close(); }, cancel() { cancellations++; }
     }), { status, headers: responseHeaders }));
   });
   const probe = new Probe({ id: "fixture", request, diagnostics: () => ({ transport: "fixture", requests: requests.length, failures: 0, averageLatencyMs: 0 }) },
-    { enabled: true, timeoutMs: scenario.budget ? 20 : 1000, maxCandidates: 2, maxConcurrent: 1 }, silentLogger, () => 1000);
-  const registry = new StreamProviderRegistry(1000, silentLogger);
+    { enabled: true, timeoutMs: scenario.budget ? 20 : 1000, maxCandidates: 2, maxConcurrent: 1 }, log, () => 1000);
+  const registry = new StreamProviderRegistry(1000, log);
   registry.register({ id: "fixture", name: "Synthetic provider", isEnabled: () => true, resolve: () => Promise.resolve([
     { providerId: "fixture", type: "https" as const, url: "https://media.example/" + (scenario.path ?? "opaque-private-canary") + "?signature=query-private-canary",
-      title: "Synthetic.Display.2001.mkv", ...(scenario.filename !== undefined ? { filename: scenario.filename } : {}) }
+      title: "Synthetic.Display.2001.mkv", ...(scenario.filename !== undefined ? { filename: scenario.filename } : {}), ...scenario.source }
   ]) });
   const resolver = new Resolver(registry, new ExternalUrlPolicy({ resolver: () => Promise.resolve([{ address: "93.184.216.34", family: 4 }]) }), probe,
     undefined, undefined, 50, diagnosticObserverFactory(c));
@@ -43,7 +52,7 @@ export async function directMediaFixture(scenario: MediaScenario, mode: "off" | 
   try { result = await resolver.resolve({ id: "query-private-canary", title: "Synthetic request", kind: "movie", externalIds: {} }, parent.signal); }
   catch (error) { if (!scenario.cancel) throw error; cancelled = parent.signal.aborted; }
   finally { c.stop(); }
-  return { c, result, requests, cancellations, cancelled, diagnostics: probe.diagnostics() };
+  return { c, result, requests, cancellations, cancelled, logs, diagnostics: probe.diagnostics() };
 }
 
 export const scenarios: Array<[string, MediaScenario, boolean, string, string]> = [

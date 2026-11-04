@@ -748,6 +748,116 @@ class HostEnvironmentTests(unittest.TestCase):
             self.assertEqual(len(json.load(response)["streams"]), 2)
         self.assertFalse(marker.exists())
 
+    @unittest.skipUnless(os.name == "nt", "raw Windows environment block")
+    def test_launcher_duplicate_case_environment_is_cleared_without_parent_mutation(self) -> None:
+        self.assert_raw_case_environment(conflicting_allowed=False)
+
+    @unittest.skipUnless(os.name == "nt", "raw Windows environment block")
+    def test_launcher_conflicting_allowed_case_entries_fail_before_python(self) -> None:
+        self.assert_raw_case_environment(conflicting_allowed=True)
+
+    def assert_raw_case_environment(self, *, conflicting_allowed: bool) -> None:
+        # subprocess normalizes duplicate Windows names. Use a raw synthetic block
+        # to reproduce the .NET Framework lazy getter failure in a real process.
+        import base64
+        import ctypes
+        from ctypes import wintypes
+        from adapter_host.kodi.windows_job import WindowsWorkerJob
+
+        class StartupInfo(ctypes.Structure):
+            _fields_ = [("cb", wintypes.DWORD)] + [(n, wintypes.LPWSTR) for n in (
+                "lpReserved", "lpDesktop", "lpTitle")] + [(n, wintypes.DWORD) for n in (
+                "dwX", "dwY", "dwXSize", "dwYSize", "dwXCountChars", "dwYCountChars",
+                "dwFillAttribute", "dwFlags")] + [(n, wintypes.WORD) for n in (
+                "wShowWindow", "cbReserved2")] + [("lpReserved2", ctypes.POINTER(wintypes.BYTE))] + [
+                (n, wintypes.HANDLE) for n in ("hStdInput", "hStdOutput", "hStdError")]
+
+        class ProcessInfo(ctypes.Structure):
+            _fields_ = [("process", wintypes.HANDLE), ("thread", wintypes.HANDLE),
+                        ("pid", wintypes.DWORD), ("tid", wintypes.DWORD)]
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            host = root / "python-adapter-host"
+            package = host / "adapter_host"
+            package.mkdir(parents=True)
+            shutil.copy2(HOST / "start-local.ps1", host / "start-local.ps1")
+            (root / ".env").write_text('PYTHON_ADAPTER_PORT="7109"\n', encoding="utf-8")
+            (package / "__init__.py").write_text("", encoding="utf-8")
+            evidence, parent = root / "child.json", root / "parent.json"
+            (package / "__main__.py").write_text(
+                "import json, os\nfrom pathlib import Path\n"
+                f"Path({str(evidence)!r}).write_text(json.dumps({{'forbiddenPresent': "
+                f"any(n.upper() in {list(FORBIDDEN)!r} or n.upper() == 'SYNTHETIC_CASE' for n in os.environ), "
+                "'port': os.getenv('PYTHON_ADAPTER_PORT'), 'utf8': os.getenv('PYTHONUTF8')}))\n",
+                encoding="utf-8")
+            launcher_path = str(host / "start-local.ps1").replace("'", "''")
+            parent_path = str(parent).replace("'", "''")
+            script = (
+                "$before=[Environment]::GetEnvironmentVariables()\n"
+                "$code=0; $failureType=''\ntry { & '" + launcher_path + "'; $code=$LASTEXITCODE } catch { $code=73; $failureLine=$_.InvocationInfo.ScriptLineNumber; $e=$_.Exception; while($e.InnerException){$e=$e.InnerException}; $failureType=$e.GetType().FullName }\n"
+                "$after=[Environment]::GetEnvironmentVariables()\n"
+                "$same=$before.Count -eq $after.Count\n"
+                "foreach($key in $before.Keys){if($before[$key] -cne $after[$key]){$same=$false}}\n"
+                "@{parentUnchanged=$same;exitCode=$code;failureType=$failureType;failureLine=$failureLine}|ConvertTo-Json -Compress|"
+                "Set-Content -Encoding UTF8 -LiteralPath '" + parent_path + "'\nexit $code\n")
+            command = subprocess.list2cmdline([shutil.which("powershell"), "-NoProfile", "-NonInteractive",
+                                               "-EncodedCommand", base64.b64encode(script.encode("utf-16-le")).decode()])
+            env = synthetic_environment()
+            raw = "\0".join(f"{k}={v}" for k, v in sorted(env.items(), key=lambda e: e[0].casefold()))
+            if conflicting_allowed:
+                raw += "\0python_adapter_max_total_results=18\0\0"
+            else:
+                raw += "\0SYNTHETIC_CASE=SYNTHETIC_A\0synthetic_case=SYNTHETIC_B\0\0"
+            block, command_line = ctypes.create_unicode_buffer(raw), ctypes.create_unicode_buffer(command)
+            job = WindowsWorkerJob()
+            kernel = job._kernel
+            kernel.CreateProcessW.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, ctypes.c_void_p,
+                ctypes.c_void_p, wintypes.BOOL, wintypes.DWORD, ctypes.c_void_p, wintypes.LPCWSTR,
+                ctypes.POINTER(StartupInfo), ctypes.POINTER(ProcessInfo)]
+            kernel.CreateProcessW.restype = wintypes.BOOL
+            kernel.ResumeThread.argtypes = [wintypes.HANDLE]
+            kernel.ResumeThread.restype = wintypes.DWORD
+            kernel.WaitForSingleObject.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+            kernel.TerminateProcess.argtypes = [wintypes.HANDLE, wintypes.UINT]
+            kernel.TerminateProcess.restype = wintypes.BOOL
+            info, process = StartupInfo(), ProcessInfo()
+            info.cb = ctypes.sizeof(info)
+            assigned = False
+            try:
+                # Suspended until assigned: all descendants belong to the existing test Job.
+                if not kernel.CreateProcessW(None, command_line, None, None, False,
+                        0x08000404, block, str(root), ctypes.byref(info), ctypes.byref(process)):
+                    raise ctypes.WinError(ctypes.get_last_error())
+                job.assign(process.pid)
+                assigned = True
+                self.assertNotEqual(kernel.ResumeThread(process.thread), 0xffffffff)
+                self.assertEqual(kernel.WaitForSingleObject(process.process, 30000), 0, "synthetic launcher timed out")
+                observed_parent = json.loads(parent.read_text(encoding="utf-8-sig"))
+                self.assertTrue(observed_parent["parentUnchanged"])
+                if conflicting_allowed:
+                    self.assertEqual(observed_parent["exitCode"], 73)
+                    self.assertFalse(evidence.exists(), "ambiguous configuration reached Python")
+                else:
+                    self.assertEqual(observed_parent["exitCode"], 0,
+                                     {k: observed_parent.get(k) for k in ("failureType", "failureLine")})
+                    child = json.loads(evidence.read_text())
+                    self.assertFalse(child["forbiddenPresent"])
+                    self.assertEqual(child["port"], "7109")
+                    self.assertEqual(child["utf8"], "1")
+            finally:
+                try:
+                    if process.process and not assigned:
+                        kernel.TerminateProcess(process.process, 1)
+                        kernel.WaitForSingleObject(process.process, 5000)
+                    stop_launcher_job(job)
+                finally:
+                    job.close()
+                    if process.thread:
+                        kernel.CloseHandle(process.thread)
+                    if process.process:
+                        kernel.CloseHandle(process.process)
+
     @unittest.skipUnless(os.name == "nt", "supported Windows launcher")
     def test_launcher_child_environment_and_parent_unchanged(self) -> None:
         for shell in ("powershell", "pwsh"):

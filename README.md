@@ -1,14 +1,14 @@
 # Tribler Stremio Bridge
 
-Sources for the **v1.5.0 local candidate (unreleased)**,
-based on public v1.4.0 at `18267ac0975f50e201c812db02d1c43cbb2d51ce`.
-**v1.5 is technically closed locally and feature frozen (2026-11-03).**
-See the [v1.5 technical notes](docs/releases/v1.5-diagnostic-readiness.md),
-[closure QA and limits](docs/qa/v1.5-technical-closure.md), historical
-[v1.4 notes](docs/releases/v1.4.0.md), [v1.3 notes](docs/releases/v1.3.0.md)
-and [changelog](CHANGELOG.md). See [v1.5.0 candidate notes](docs/releases/v1.5.0.md)
-for distribution and unresolved dependency decisions. Historical QA does not certify
-this candidate SHA. Publication remains blocked and unauthorized.
+Sources for the **v1.5.1 candidate (unreleased)**, based on public v1.5.0
+at `ff1d4b151e0b0e8eb48cfa5b777c1fbfdf32c3d8`.
+Bounded MP4/Matroska structural evidence can admit otherwise opaque direct sources
+only under the documented MIME/206/Range constraints. It does not verify identity,
+video tracks, codecs or playback; unsupported structures remain rejected.
+See [candidate notes](docs/releases/v1.5.1.md),
+[release checkpoint](docs/qa/us-1512-release-checkpoint.md),
+[diagnostic contract](docs/diagnostics.md) and [changelog](CHANGELOG.md).
+Tooling dependency risks remain open; publication requires explicit owner approval.
 
 This personal, independent project explores neutral multimedia engineering for experimentation and household use. It is a professional portfolio project with engineering direction and QA by Abraham Ferrero, developed with AI assistance. It is not officially affiliated with Stremio or Tribler. The public source release is available under [PolyForm Noncommercial 1.0.0](LICENSE).
 

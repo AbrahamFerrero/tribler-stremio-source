@@ -6,6 +6,7 @@ import { OutboundRedirectError, type OutboundTransport, type OutboundRequest } f
 import { ExternalUrlPolicyError } from "../network/url-policy";
 import { MP4_INSPECTION_BYTES, mp4RuntimeFromPrefix, mp4RuntimeFromTail } from "./mp4-runtime";
 import { hasKnownDirectVideoName } from "./normalization";
+import { directMediaSignature } from "./direct-media-signature";
 import { episodeResourceObservationFromUrl, movieResourceObservationFromUrl, resourceIdentityFromUrl } from "./identity-qualification";
 import type { DirectHttpProbeMetadata, DirectHttpProbeStatus, HlsFailureCause, HlsFailureEvidence, HlsFailurePhase, NormalizedStreamSource, ResourceIdentity } from "./types";
 
@@ -157,7 +158,8 @@ function playlistBodyLength(response: Response): number | undefined {
 
 async function initialPrefix(
   body: ReadableStream<Uint8Array>,
-  maximum = INITIAL_PREFIX_BYTES
+  maximum = INITIAL_PREFIX_BYTES,
+  excess?: () => void
 ): Promise<Uint8Array> {
   const reader = body.getReader();
   const prefix = new Uint8Array(maximum);
@@ -166,6 +168,7 @@ async function initialPrefix(
     for (let reads = 0; length < prefix.length && reads < maximum; reads += 1) {
       const chunk = await reader.read();
       if (chunk.done) break;
+      if (chunk.value.length > prefix.length - length) excess?.();
       const slice = chunk.value.subarray(0, prefix.length - length);
       prefix.set(slice, length);
       length += slice.length;
@@ -635,7 +638,8 @@ export class DirectStreamProbe {
           await response.body?.cancel();
           metadata = { status: "reachable", verified: false, rangeSupported: false, responseStatus: 206, ...common };
         } else {
-          const prefix = await initialPrefix(response.body);
+          let excessObserved = false;
+          const prefix = await initialPrefix(response.body, INITIAL_PREFIX_BYTES, () => { excessObserved = true; });
           const format = documentFormat(prefix);
           if (prefix.length === 0) {
             metadata = { status: "reachable", verified: false, rangeSupported: false, responseStatus: 206,
@@ -659,7 +663,10 @@ export class DirectStreamProbe {
               if (controller.signal.aborted) throw error;
               // Unsupported or unavailable metadata cannot contradict identity.
             }
+            const containerSignature = type === "application/octet-stream" && !excessObserved
+              && initialRangeSizeEvidence(response.headers, prefix) ? directMediaSignature(prefix, observedSizeBytes) : undefined;
             metadata = { status: "verified", verified: true, rangeSupported: true, responseStatus: 206,
+              ...(containerSignature ? { containerSignature } : {}),
               ...headerLatency, ...common, observedSizeBytes,
               ...(initialRangeSizeEvidence(response.headers, prefix)
                 ? { sizeEvidence: "initial_range_206" as const } : {}),

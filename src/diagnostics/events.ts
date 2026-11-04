@@ -1,6 +1,6 @@
 import type { DeterministicProbeCause, StreamExclusion, StreamProviderFailureCategory } from "../streams/resolver";
 import type { HlsFailureCause, HlsFailurePhase } from "../streams/types";
-import { videoNames, mediaMimes, mediaCauses, type DirectMediaEvidence } from "../streams/direct-media-evidence";
+import { videoNames, mediaMimes, mediaCauses, type DirectMediaEvidence, type DirectMediaSignatureEvidence } from "../streams/direct-media-evidence";
 
 export type DiagnosticStage = "PROVIDER" | "NORMALIZED" | "DEDUPLICATED" | "PROBED" | "ADMITTED" | "FINAL";
 export type DiagnosticDecision = "CONTINUE" | "REJECT" | "RETAIN";
@@ -12,6 +12,7 @@ export interface DiagnosticScores {
   codec: number; metadata: number; transport: number;
 }
 export type DiagnosticEvent =
+  | ({ kind: "DIRECT_MEDIA_SIGNATURE"; stage: "ADMITTED"; candidate: number } & DirectMediaSignatureEvidence)
   | ({ kind: "DIRECT_MEDIA"; stage: "ADMITTED"; candidate: number } & DirectMediaEvidence)
   | { kind: "REQUEST"; mediaKind: "movie" | "series" | "episode" | "UNOBSERVED" }
   | { kind: "PROVIDER_STATE"; provider: number; status: "ENABLED" | "DISABLED" | "INVOKED" | "RETURNED_ZERO" | "RETURNED_RESULTS" | "FAILED" | "TIMED_OUT" | "CANCELLED" | "NOT_OBSERVED" }
@@ -48,6 +49,9 @@ export function projectDiagnosticEvent(event: DiagnosticEvent): DiagnosticEvent 
   const slot = () => integer(d.candidate, 0, 255);
   let valid = false;
   switch (d.kind) {
+    case "DIRECT_MEDIA_SIGNATURE": valid = exact("kind", "stage", "candidate", "container", "mime", "response", "range", "verified")
+      && slot() && d.stage === "ADMITTED" && member(d.container, ["mp4", "matroska"])
+      && d.mime === "application/octet-stream" && d.response === 206 && d.range === true && d.verified === true; break;
     case "DIRECT_MEDIA": valid = exact("kind", "stage", "candidate", "filename", "urlName", "mime", "media", "mediaCause", "transport", "response", "range", "verified")
       && slot() && d.stage === "ADMITTED" && member(d.filename, videoNames) && member(d.urlName, videoNames.filter(n => n !== "ABSENT"))
       && member(d.mime, mediaMimes) && member(d.mediaCause, mediaCauses) && member(d.transport, probes) && typeof d.range === "boolean" && typeof d.verified === "boolean"

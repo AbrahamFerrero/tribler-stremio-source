@@ -14,11 +14,36 @@ $startInfo.WorkingDirectory = $PSScriptRoot
 $startInfo.UseShellExecute = $false
 # EnvironmentVariables works on Windows PowerShell 5.1 and PowerShell 7.
 # Clear the CHILD block before process creation; never modify Env: in the shell.
-$startInfo.EnvironmentVariables.Clear()
-foreach ($entry in Get-ChildItem Env:) {
-    if ($entry.Name -in @('SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP') -or
-        $entry.Name -match '^PYTHON_ADAPTER_[A-Z0-9_]+$') {
-        $startInfo.EnvironmentVariables[$entry.Name.ToUpperInvariant()] = $entry.Value
+# .NET Framework can throw while lazily copying duplicate case-insensitive
+# parent names. PowerShell can expose that first getter failure as null. The
+# collection is already allocated; reacquire it, then clear it before use.
+$childEnvironment = $null
+try {
+    $childEnvironment = $startInfo.EnvironmentVariables
+} catch [System.ArgumentException] {
+    $childEnvironment = $startInfo.EnvironmentVariables
+}
+if ($null -eq $childEnvironment) {
+    $childEnvironment = $startInfo.EnvironmentVariables
+}
+if ($null -eq $childEnvironment) {
+    throw "Unable to initialize isolated child environment."
+}
+$childEnvironment.Clear()
+if ($childEnvironment.Count -ne 0) {
+    throw "Unable to clear isolated child environment."
+}
+# The Env: provider also rejects duplicate case-insensitive names. Enumerate
+# the process snapshot directly; filter before copying anything into the child.
+foreach ($entry in [Environment]::GetEnvironmentVariables().GetEnumerator()) {
+    if ($entry.Key -in @('SYSTEMROOT', 'WINDIR', 'TEMP', 'TMP') -or
+        $entry.Key -match '^PYTHON_ADAPTER_[A-Z0-9_]+$') {
+        $normalizedName = $entry.Key.ToUpperInvariant()
+        if ($childEnvironment.ContainsKey($normalizedName) -and
+            $childEnvironment[$normalizedName] -cne $entry.Value) {
+            throw "Conflicting allowed child environment entries."
+        }
+        $childEnvironment[$normalizedName] = $entry.Value
     }
 }
 foreach ($line in Get-Content -LiteralPath $environmentFile) {
@@ -31,11 +56,11 @@ foreach ($line in Get-Content -LiteralPath $environmentFile) {
         ($value.StartsWith("'") -and $value.EndsWith("'"))) {
         $value = $value.Substring(1, $value.Length - 2)
     }
-    $startInfo.EnvironmentVariables[$name.ToUpperInvariant()] = $value
+    $childEnvironment[$name.ToUpperInvariant()] = $value
 }
 
-$startInfo.EnvironmentVariables['PYTHONUTF8'] = '1'
-$startInfo.EnvironmentVariables['PYTHONIOENCODING'] = 'utf-8'
+$childEnvironment['PYTHONUTF8'] = '1'
+$childEnvironment['PYTHONIOENCODING'] = 'utf-8'
 $child = New-Object System.Diagnostics.Process
 $child.StartInfo = $startInfo
 $started = $false

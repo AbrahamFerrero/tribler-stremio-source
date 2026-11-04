@@ -18,6 +18,15 @@ export interface DirectMediaEvidence {
   verified: boolean;
 }
 
+export interface DirectMediaSignatureEvidence {
+  container: import("./direct-media-signature").DirectMediaSignature;
+  mime: "application/octet-stream";
+  response: 206;
+  range: true;
+  verified: true;
+}
+export type DirectMediaObservation = DirectMediaEvidence | DirectMediaSignatureEvidence;
+
 export function directMediaEvidence(source: NormalizedStreamSource, admitted: boolean, cause: DirectMediaEvidence["mediaCause"], header?: "ABSENT" | "MALFORMED" | "VALID"): DirectMediaEvidence {
   const names = directVideoNames(source);
   const name = (value: string | undefined, recognized: boolean): DirectMediaEvidence["filename"] => {

@@ -1,6 +1,6 @@
 import type { Logger } from "../logger";
 import { validSeedCount } from "./seed-count";
-import { directMediaEvidence, type DirectMediaEvidence } from "./direct-media-evidence";
+import { directMediaEvidence, type DirectMediaEvidence, type DirectMediaObservation } from "./direct-media-evidence";
 import { ExternalUrlPolicy, ExternalUrlPolicyError } from "../network/url-policy";
 import { hasKnownDirectVideoName, normalizeStreamSource } from "./normalization";
 import { streamDeduplicationKey } from "./stream-deduplication";
@@ -60,7 +60,7 @@ export type StreamExclusion = { candidate: StreamCandidateRef } & (
 
 /** Optional in-memory instrumentation; no automatic logging or public API. */
 export interface StreamResolverTrace {
-  directMedia?(event: { candidate: StreamCandidateRef; evidence: DirectMediaEvidence }): void;
+  directMedia?(event: { candidate: StreamCandidateRef; evidence: DirectMediaObservation }): void;
   /** Optional call-local references align with sources at every snapshot. */
   stage(stage: "provider" | "normalized" | "deduplicated" | "probed" | "admitted" | "final", sources: readonly NormalizedStreamSource[],
     candidateRefs?: readonly StreamCandidateRef[]): void;
@@ -158,7 +158,8 @@ export function deterministicProbeRejectionEvidence(source: NormalizedStreamSour
 /**
  * Direct URLs with a recognised video name retain the historic admission
  * path. Opaque URLs are fail-closed: the existing probe must have observed
- * video media in either a complete 200 response or a valid byte-range 206.
+ * video MIME in a 200/verified 206, or qualified structural container evidence
+ * with octet-stream in a coherent initial 206. This is not playback verification.
  */
 type ProbeAdmissionRejection = "PROBE_BUDGET_EXHAUSTED" | "DETERMINISTIC_PROBE_REJECTION" | "HLS_NOT_VERIFIED" | "DIRECT_MEDIA_NOT_VERIFIED";
 type ObserveProbeRejection = (reason: ProbeAdmissionRejection, evidence?: DeterministicProbeEvidence, hls?: HlsFailureEvidence) => void;
@@ -166,7 +167,7 @@ function rejectDirectMedia(reason: ProbeAdmissionRejection, observe?: ObservePro
   observe?.(reason, evidence, hls);
   return false;
 }
-function admitDirectMedia(source: NormalizedStreamSource, observe?: ObserveProbeRejection, mediaObservation?: (evidence: DirectMediaEvidence) => void, mimeHeader?: "ABSENT" | "MALFORMED" | "VALID"): boolean {
+function admitDirectMedia(source: NormalizedStreamSource, observe?: ObserveProbeRejection, mediaObservation?: (evidence: DirectMediaObservation) => void, mimeHeader?: "ABSENT" | "MALFORMED" | "VALID"): boolean {
   const decision = (admitted: boolean, cause: DirectMediaEvidence["mediaCause"] = "NONE") => {
     if (mediaObservation && isDirect(source)) {
       try { mediaObservation(directMediaEvidence(source, admitted, cause, mimeHeader)); } catch { /* Passive diagnostics cannot change admission. */ }
@@ -184,6 +185,13 @@ function admitDirectMedia(source: NormalizedStreamSource, observe?: ObserveProbe
     source.directHttp?.hlsFailure ?? { cause: "CAUSE_UNDETERMINED" });
   if (!isDirect(source) || hasKnownDirectVideoName(source)) return decision(true);
   if (isVerifiedHls(source)) return true;
+  if (probe?.contentType === "application/octet-stream" && probe.status === "verified" && probe.responseStatus === 206
+    && probe.verified && probe.rangeSupported && probe.sizeEvidence === "initial_range_206"
+    && (probe.containerSignature === "mp4" || probe.containerSignature === "matroska")) {
+    try { mediaObservation?.({ container: probe.containerSignature, mime: "application/octet-stream", response: 206, range: true, verified: true }); }
+    catch { /* Passive diagnostics cannot change admission. */ }
+    return true;
+  }
   if (!probe || !isVideoMedia(source)) return decision(rejectDirectMedia("DIRECT_MEDIA_NOT_VERIFIED", observe),
     !probe ? "EVIDENCE_UNDETERMINED" : !probe.contentType ? "MIME_ABSENT" : "MIME_NOT_VIDEO");
   const admitted = probe.responseStatus === 200 || (probe.responseStatus === 206 && probe.verified && probe.rangeSupported);

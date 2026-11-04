@@ -37,6 +37,32 @@ const torrent = (hex: string, extra: Partial<Source> = {}): Source => ({ provide
 const locator = (source: Source) => source.url ?? source.magnet;
 afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks(); });
 
+describe("signature admission through public Stremio discovery", () => {
+  it("exposes a newly admitted opaque source only through the existing playback capability", async () => {
+    const source = direct("new", { url: "https://media.example/signature/opaque?token=SIGNED-SECRET-CANARY" });
+    const result = await publicRun([source]);
+    expect(result.sources).toHaveLength(1);
+    expect(result.sources[0]!.directHttp?.containerSignature).toBe("mp4");
+    expect(result.body.streams).toHaveLength(1);
+    const json = JSON.stringify(result.body);
+    for (const canary of ["SIGNED-SECRET-CANARY", "media.example", "signature/opaque", "containerSignature", "DIRECT_MEDIA_SIGNATURE"])
+      expect(json).not.toContain(canary);
+    expect(result.network).toHaveLength(1);
+  });
+  it("applies unchanged dedupe, ranking and provider quota after the legitimate set expansion", async () => {
+    const added = direct("new", { url: "https://media.example/signature/opaque", quality: "2160p" });
+    const old = Array.from({ length: 50 }, (_, i) => direct(`existing-${i}`));
+    const result = await publicRun([...old, added, { ...added, quality: "480p" }]);
+    expect(result.stages.get("deduplicated")).toHaveLength(51);
+    expect(result.stages.get("admitted")).toHaveLength(51);
+    expect(result.body.streams).toHaveLength(50);
+    expect(result.sources[0]!.url).toBe(added.url);
+    expect(result.sources.filter(s => s.url === added.url)).toHaveLength(1);
+    expect(result.sources.filter(s => old.some(o => o.url === s.url))).toHaveLength(49);
+    expect(result.network).toHaveLength(51);
+  });
+});
+
 // Historical final comparator only: reuse the real pipeline and its admitted
 // objects, then apply the previous technical order and unchanged provider cap.
 // This control does not replace admission, dedupe, probing or identity logic.
@@ -72,7 +98,7 @@ async function publicRun(input: Source[], legacy = false, policy = currentPolicy
     const range = /^bytes=(\d+)-(\d+)$/.exec(new Headers(headers).get("range")!)!;
     const start = Number(range[1]), end = Math.min(Number(range[2]), body.length - 1);
     return Promise.resolve(new Response(body.subarray(start, end + 1), { status: 206,
-      headers: { "Content-Type": "video/mp4", "Content-Range": `bytes ${start}-${end}/${body.length}` } }));
+      headers: { "Content-Type": url.includes("/signature/") ? "application/octet-stream" : "video/mp4", "Content-Range": `bytes ${start}-${end}/${body.length}` } }));
   }));
   const transport: OutboundTransport = { id: "fixture", request: network,
     diagnostics: () => ({ transport: "fixture", requests: network.mock.calls.length, failures: 0, averageLatencyMs: 0 }) };

@@ -52,7 +52,11 @@ export function observeResolution(capture: DiagnosticCapture): StreamResolverObs
     directMedia: event => guarded(() => {
       const slot = references.get(event.candidate);
       if (slot === undefined) { gap(-1, "ADMITTED", "CONTINUITY", "UNOBSERVED"); return; }
-      capture.record({ kind: "DIRECT_MEDIA", candidate: slot, stage: "ADMITTED", ...event.evidence });
+      if ("container" in event.evidence) {
+        const e = event.evidence;
+        capture.record({ kind: "DIRECT_MEDIA_SIGNATURE", candidate: slot, stage: "ADMITTED", container: e.container,
+          mime: e.mime, response: e.response, range: e.range, verified: e.verified });
+      } else capture.record({ kind: "DIRECT_MEDIA", candidate: slot, stage: "ADMITTED", ...event.evidence });
     }),
     stage: (stage, sources, refs) => guarded(() => {
       const name = stages[stage];

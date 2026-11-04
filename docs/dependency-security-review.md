@@ -1,6 +1,55 @@
 # Dependency security review — 2026-10-17
 
+Current v1.5.1 preparation: see the [candidate-specific proposal](#v151-candidate-proposal--2026-11-04).
+All earlier acceptances retain their original artifact scope.
+
 Status: partial remediation; the bundled source-map-js vulnerability remains open.
+
+## v1.5.1 candidate proposal — 2026-11-04
+
+**PROPOSED ONLY: owner acceptance is pending. Release NO-GO.** No earlier v1.5.0,
+v1.4 or local-integration acceptance transfers to this artifact. No parser
+replacement, dependency upgrade, override, suppression or vendored fix is made.
+Replacement research is deferred to possible v1.5.2 work.
+
+The exact manifest/lock pair was clean-installed with `npm ci --ignore-scripts`.
+Only the root package/lock version changes to 1.5.1; every dependency resolution,
+integrity, override and consumer configuration is unchanged from public v1.5.0.
+Lockfile SHA-256: `f81e6b822f0ebdb4007dad012ea8aa364a3737f265a12d1c8b76852bc0547ceb`.
+The 333 installed package versions match the lock; 50 platform-specific optional
+entries are absent on this platform. Declared licenses across the 383 entries
+are MIT, Apache-2.0, BlueOak-1.0.0, ISC, Python-2.0, BSD-2-Clause, BSD-3-Clause,
+MPL-2.0 and 0BSD. This inventory is not an independent legal certification.
+Installed dependencies are excluded from the proposed source-only distribution.
+Project LICENSE and NOTICE remain byte-for-byte unchanged.
+
+| Risk | Fresh candidate exposure and impact | Existing controls | FIX / ACCEPT / DEFER proposal |
+| --- | --- | --- | --- |
+| [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249), moderate | Full npm audit exits 1: 11 development entries through minimatch and ESLint/TypeScript tooling. Attacker-controlled glob patterns can amplify CPU/memory use; the advisory describes optimization level >=2. No production dependency path is reported by the production audit. This does not establish universal development-input safety. | Reviewed repository/configuration inputs; isolated development/CI with existing 20-minute job limits; no exposed development server or untrusted pattern service in this release. Timeouts limit duration, not input safety. | FIX in this release would require separately reviewed compatible changes and fresh gates; none is proposed. Propose temporary ACCEPT only for this exact source-only 1.5.1 artifact, subject to explicit owner decision. DEFER remediation research to possible 1.5.2 without claiming closure. |
+| [GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q), high | Magicast 0.5.5 declares and bundles source-map-js 1.2.1. The installed executable bundle retains indexed-section ordering checks without the patched offset integer/bounds validation and the generated-line loop. Malicious indexed maps can block the event loop. External source-map-js 1.2.2 and npm audit do not fix or enumerate this embedded copy. | The bounded static review finds a development coverage consumer, no bridge request path; autoUpdate remains disabled, recast map options default to null, and reviewed project code does not pass source maps to magicast. Require trusted reviewed configs/ASTs/map options/maps, isolated execution and bounded jobs. This is not proof of universal unreachability. | FIX requires a verified corrected artifact or a separate tooling decision; no replacement investigation is authorized here. Propose separate temporary ACCEPT for this exact source-only 1.5.1 artifact under these controls. DEFER remediation research to possible 1.5.2. |
+
+Fresh audit results on Windows, 2026-11-04 (Asia/Tokyo): full audit FAIL with
+11 moderate entries; production audit PASS with zero findings. No additional
+declared advisory appeared in that query. The separate embedded high-severity
+risk remains open. Initial sandboxed audit requests could not reach the registry;
+the results above came from the subsequent successful authorized network query.
+Both advisory pages were consulted; no new exploit or substitution campaign ran.
+
+Any proposed acceptance requires the owner's explicit decision for the identified
+candidate tree and this lockfile, excludes installed/bundled/binary distribution,
+and does not mark the audit PASS. Owner review is required again before the next
+release and immediately if dependency/consumer/configuration or distribution scope
+changes, untrusted patterns/maps become reachable, a production path is found,
+autoUpdate/map composition is enabled, or trust/isolation/time controls fail.
+The owner must separately decide the failing audit gate; hosted results must still
+be observed and no security CI step is removed, skipped or softened here.
+
+The inherited P1 trusted-local-module/OS-isolation limitation also needs a
+candidate-specific close-or-accept decision under SECURITY.md. No hostile-code
+sandbox claim is introduced. The public [release checkpoint](qa/us-1512-release-checkpoint.md)
+records remaining CI and owner decisions and applies the owner-supplied external
+section E. That section does not require a new playback smoke; any separately
+required smoke needs specific authorization. No required gate is waived by this proposal.
 
 ## Scope and baseline
 
