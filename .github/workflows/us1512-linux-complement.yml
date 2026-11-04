@@ -1,0 +1,80 @@
+name: US1512 Linux omitted gates
+run-name: Linux complement for fea92181238d2b49e8ed14c0742dcd05f6219a46
+
+on:
+  push:
+    branches:
+      - ci/us1512-linux-complement
+
+permissions:
+  contents: read
+
+concurrency:
+  group: us1512-linux-complement
+  cancel-in-progress: false
+
+jobs:
+  linux-omitted-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out exact approved candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: AbrahamFerrero/tribler-stremio-source
+          ref: fea92181238d2b49e8ed14c0742dcd05f6219a46
+          fetch-depth: 1
+          fetch-tags: false
+          persist-credentials: false
+
+      - name: Verify candidate commit, tree, sole parent and lockfile
+        id: verify
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = fea92181238d2b49e8ed14c0742dcd05f6219a46
+          test "$(git rev-parse 'HEAD^{tree}')" = 47713db4563f7005cb2d7124e36ad341e4cb498b
+          parents="$(git cat-file -p HEAD | sed -n 's/^parent //p')"
+          test "$parents" = ff1d4b151e0b0e8eb48cfa5b777c1fbfdf32c3d8
+          test -z "$(git status --porcelain)"
+          printf '%s  %s\n' f81e6b822f0ebdb4007dad012ea8aa364a3737f265a12d1c8b76852bc0547ceb package-lock.json | sha256sum -c -
+          printf 'Validated target commit: %s\n' "$(git rev-parse HEAD)"
+          printf 'Validated target tree: %s\n' "$(git rev-parse 'HEAD^{tree}')"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 20
+
+      - name: Set up Python
+        id: setup_python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.11'
+
+      - name: Install exact locked dependencies without lifecycle scripts
+        id: node_dependencies
+        run: npm ci --ignore-scripts --no-fund
+
+      - name: Audit production Node.js dependencies
+        if: ${{ !cancelled() && steps.verify.outcome == 'success' && steps.node_dependencies.outcome == 'success' }}
+        run: npm audit --omit=dev
+
+      - name: Install Python development tools
+        id: python_tools
+        if: ${{ !cancelled() && steps.verify.outcome == 'success' && steps.setup_python.outcome == 'success' }}
+        working-directory: python-adapter-host
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Run Python adapter tests with branch coverage
+        id: python_tests
+        if: ${{ !cancelled() && steps.verify.outcome == 'success' && steps.python_tools.outcome == 'success' }}
+        working-directory: python-adapter-host
+        run: python -m coverage run --branch -m unittest discover -s tests -v
+
+      - name: Report Python coverage
+        if: ${{ !cancelled() && steps.verify.outcome == 'success' && steps.python_tools.outcome == 'success' && (steps.python_tests.outcome == 'success' || steps.python_tests.outcome == 'failure') }}
+        working-directory: python-adapter-host
+        run: python -m coverage report --include='adapter_host/*'
