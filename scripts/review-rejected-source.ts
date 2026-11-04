@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "../src/startup-policy-guard";
 import { createInterface } from "node:readline/promises";
 import { loadConfig } from "../src/config";
 import { createStreamMediaItem } from "../src/addon";

@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "../src/startup-policy-guard";
 import { loadConfig } from "../src/config";
 import { DirectStreamProbe } from "../src/streams/direct-stream-probe";
 import { loadEvaluationCases } from "./evaluation-corpus";

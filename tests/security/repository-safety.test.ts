@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { ESLint } from "eslint";
@@ -58,6 +59,36 @@ describe("repository safety CLI integration (synthetic Git repositories)", () =>
     if (scenario === "staged") git(root, "add", ".");
     expect(scan(root, scenario !== "staged").status).toBe(0);
   }, oneScanBudgetMs);
+
+  it("retains fail-closed classification without printing filesystem causes or stacks", () => {
+    const root = fixture();
+    const marker = "SYNTH_SCANNER_INTERNAL_152";
+    const hook = join(root, ".git", "synthetic-hook.mjs");
+    writeFileSync(hook, `
+      import fs from 'node:fs';
+      import { syncBuiltinESMExports } from 'node:module';
+      import { basename } from 'node:path';
+      const original = fs.lstatSync;
+      fs.lstatSync = function(file, ...args) {
+        if (basename(String(file)) === 'safe.txt') {
+          const error = new Error('${marker}', { cause: new Error('${marker}') });
+          error.code = 'EACCES'; error.stack = '${marker}'; throw error;
+        }
+        return original.call(this, file, ...args);
+      };
+      syncBuiltinESMExports();
+    `);
+    const result = spawnSync(process.execPath, ["--import", pathToFileURL(require.resolve("tsx")).href,
+      "--import", pathToFileURL(hook).href, scanner, "--all"], { cwd: root, encoding: "utf8", timeout: 15_000 });
+    if (result.error) throw result.error;
+    expect(result.status).toBe(1);
+    const output = result.stdout + result.stderr;
+    expect(output).toContain("safe.txt: cannot classify filesystem entry (EACCES)");
+    expect(output).not.toContain(marker);
+    expect(output).not.toContain("check passed");
+    expect(output).not.toContain(hook);
+  }, oneScanBudgetMs);
+
 
   it("skips only registered worktree roots without inspecting private contents", () => {
     const root = fixture();

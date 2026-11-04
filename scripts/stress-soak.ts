@@ -1,3 +1,4 @@
+import "../src/startup-policy-guard";
 import { spawn } from "node:child_process";
 import { syntheticStress } from "../tests/fixtures/synthetic-stress";
 

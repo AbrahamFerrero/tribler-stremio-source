@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "../src/startup-policy-guard";
 import { spawn } from "node:child_process";
 import { resolve } from "node:path";
 import { caseSegments, loadEvaluationCases } from "./evaluation-corpus";

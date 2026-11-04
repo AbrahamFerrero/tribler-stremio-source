@@ -82,7 +82,7 @@ function contentFor(path: string, entry: IndexEntry | undefined, worktrees: Set<
     } catch (error) {
       // Only missing tracked files are intentional working-tree deletions.
       if (entry && (error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-      throw new Error(`cannot classify filesystem entry (${(error as NodeJS.ErrnoException).code ?? "unknown"})`);
+      throw new Error(`cannot classify filesystem entry (${(error as NodeJS.ErrnoException).code ?? "unknown"})`, { cause: error });
     }
     if (stat.isSymbolicLink()) throw new Error("symbolic link/reparse point is not a publishable regular file");
     if (i < parts.length - 1) {

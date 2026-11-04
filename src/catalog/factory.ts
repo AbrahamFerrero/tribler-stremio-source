@@ -143,7 +143,7 @@ export function createCatalogProviders(config: AppConfig, urlPolicy?: ExternalUr
   try {
     payload = JSON.parse(readFileSync(path, "utf8")) as SourceFile;
   } catch (error) {
-    throw new Error(`Could not read catalog sources file ${path}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Could not read catalog sources file ${path}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
   return configuredProviders(config, payload, urlPolicy);
 }

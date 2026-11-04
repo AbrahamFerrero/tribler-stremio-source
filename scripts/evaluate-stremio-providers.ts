@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "../src/startup-policy-guard";
 import { caseSegments, loadEvaluationCases } from "./evaluation-corpus";
 import { loadConfig } from "../src/config";
 import type { Logger } from "../src/logger";

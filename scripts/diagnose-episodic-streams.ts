@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "../src/startup-policy-guard";
 import { loadConfig } from "../src/config";
 import { createCatalogProviders } from "../src/catalog/factory";
 import { CatalogStreamProvider } from "../src/streams/providers/catalog-stream-provider";

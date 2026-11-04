@@ -97,7 +97,7 @@ export function loadStreamRankingPolicy(file = defaultPath): StreamRankingPolicy
     if (statSync(path).size > maxFileBytes) throw new Error(`file exceeds ${maxFileBytes} bytes`);
     return parseStreamRankingPolicy(JSON.parse(readFileSync(path, "utf8")) as unknown);
   } catch (error) {
-    throw new Error(`STREAM_RANKING_CONFIG_FILE ${path}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`STREAM_RANKING_CONFIG_FILE ${path}: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
 }
 

@@ -56,7 +56,7 @@ export function loadStremioAddonConfigs(path: string): StremioAddonConfig[] {
   try {
     payload = JSON.parse(readFileSync(path, "utf8")) as unknown;
   } catch (error) {
-    throw new Error(`Could not read Stremio addon config: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Could not read Stremio addon config: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
   if (!Array.isArray(payload) || payload.length > 32) {
     throw new Error("Stremio addon config must be an array with at most 32 entries");

@@ -1,5 +1,6 @@
 // tracker observer observes a tracker announce, not peer/piece anonymity.
 import "dotenv/config";
+import "../src/startup-policy-guard.ts";
 import { randomBytes } from "node:crypto";
 import { lstat, mkdir, realpath, rm, stat } from "node:fs/promises";
 import { isIP } from "node:net";

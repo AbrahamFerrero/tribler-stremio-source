@@ -100,7 +100,7 @@ async function streamRange(baseUrl, startByte, rangeBytes, fileBytes, timeoutMs)
   const started = performance.now();
   let firstByteMs = null;
   let downstreamBytes = 0;
-  let status = null;
+  let status;
   try {
     const url = `${baseUrl}/play/${SINTEL_INFOHASH}/${FILE_INDEX}/Sintel.mp4`;
     const response = await fetch(url, {

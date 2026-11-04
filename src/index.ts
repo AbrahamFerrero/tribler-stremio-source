@@ -1,10 +1,10 @@
 import "dotenv/config";
 import type { Server } from "node:http";
-import { createApp } from "./app";
-import { loadConfig } from "./config";
 import { logger, safeErrorDetails } from "./logger";
 
-function main(): void {
+async function main(): Promise<void> {
+  const { createApp } = await import("./app");
+  const { loadConfig } = await import("./config");
   const config = loadConfig();
   const { app, service } = createApp(config, logger);
   service.startCleanup();
@@ -39,9 +39,7 @@ function main(): void {
   process.once("SIGTERM", () => shutdown("SIGTERM"));
 }
 
-try {
-  main();
-} catch (error) {
+void main().catch((error: unknown) => {
   logger.error("Startup failed", { error: safeErrorDetails(error) });
   process.exitCode = 1;
-}
+});
