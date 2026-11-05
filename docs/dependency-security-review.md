@@ -500,3 +500,66 @@ expected failure disclosed. **Publication remains NO-GO** until actual hosted
 CI results are reviewed, any failing gate receives an explicit resolution or
 separate decision, and final publication authorization is received. No push,
 PR, merge, tag, release or visibility change is authorized here.
+
+## v1.5.2 / Story 2: scoped Magicast remediation and adversarial QA
+
+The uncommitted candidate remains based on Story 1 commit
+`ae7797e41931778940d87f3a5c58b13c6df31c89`. Its consumer-scoped override
+`"@vitest/coverage-v8": { "magicast": "0.3.5" }` is deliberately outside the
+consumer's `^0.5.2` range. Vitest/coverage-v8 remain 4.1.12, external
+source-map-js remains fixed 1.2.2, and production dependencies remain unchanged.
+No dependency changes are added by the adversarial-runner remediation.
+
+The original runner's label-based guard, shared paths and assumptions about
+filtered environment variables were insufficient. The revised runner uses
+candidate mode by default, explicit historical baseline characterization,
+exclusive validated directories, atomic run manifests and non-optimizable
+acceptance checks. Reviewed executable hashes, AST imports, invalid indexed-map
+behavior and actual external source-map composition supplement npm audit.
+Comments or textual import matches cannot replace executable-artifact checks.
+
+The [Story 2 report](qa/v1.5.2-magicast-source-map.md) records all eleven findings,
+negative tests, evidence provenance and limitations. Generic reproduction and
+collection tools are versioned; raw local logs and source exports stay ignored.
+The certification collector rejects incomplete/failed runs, altered artifacts,
+and evidence that does not match the current lockfile and QA tools. Explicit
+negative reporting retains failures as NO_GO and exits nonzero; it cannot
+promote those runs to successful validation. Prior manually assembled
+schema-1 results are superseded rather than reused as current certification.
+
+Vite dotenv loading is disabled in the synthetic probe and checked with owned
+canaries. Full QA uses neutral source-only exports without private configuration.
+Environment filtering is not an OS filesystem or network sandbox. Windows child
+processes are gated into private Job Objects; the POSIX session implementation
+still requires actual Linux/CI execution. No private configuration values are
+read, copied or published by these workflows.
+
+Review the out-of-range override and pinned artifact profile whenever Vitest,
+coverage-v8, Magicast, Babel or source-map-js changes. Remove it only after a
+compatible upstream artifact demonstrably removes or fixes the embedded copy
+and offset/configuration/coverage regression checks pass. Zero npm audit findings
+alone are insufficient. The downgrade may lack later fixes or functionality
+outside verified contracts. No fork or manual node_modules patch is maintained.
+
+The new gate is configured for both push and pull_request through the existing
+Linux and Windows jobs; hosted execution of this uncommitted diff is NOT RUN.
+No publication, push, PR, merge, tag, release or additional commit is authorized.
+
+The previous inventory remains historical **NO_GO** evidence: the exact Story 1
+baseline and a prior candidate timed out on Node 20. The subsequent investigation
+confirmed GC collection of the temporary timeout signal. The common deadline
+patch retains it until cancellation and removes its listeners. Later local
+coverage passed 2168 tests on both Node 20 and Node 22; see the deadline report.
+Those measurements predate the A1?A4 evidence contract and do not certify the
+current QA tools. The current collector requires mandatory hashed logs, probe
+and coverage artifacts, current candidate/code/QA identities, and identical
+reference identities across runtimes. Source-only exports index every snapshot
+file before installation, including ignored public files. Historical negative
+results remain preserved. Hosted CI is NOT RUN; publication remains NO_GO.
+
+The final A1-A4 collector verified both current local runs (Node 20.19.0 and
+22.23.2), all 25 gates per runtime, and the same corrected-reference/export
+identities. Both reference and candidate passed 2168 coverage tests per runtime.
+See [the integrity remediation review](qa/v1.5.2-integrity-remediation.md).
+The current inventory is VERIFIED_LOCAL; historical FAIL/NO_GO evidence is
+preserved separately. Hosted CI remains NOT RUN and publication remains NO_GO.

@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+import { getEventListeners } from "node:events";
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -135,6 +137,79 @@ describe("opt-in conflict frequency", () => {
     expect(report.observationCoverage).toEqual({ casesWithIntake: 0, casesWithoutIntake: 1 });
     expect(report.rates.earlyOfNormalizable.percent).toBeNull();
     expect(report.caseOutcomes.completed).toBe(0);
+  });
+
+  it.each(["timeout", "global", "already-global"] as const)("releases deadline listeners after %s cancellation", async mode => {
+    const controller = new AbortController();
+    const reason = new Error("Synthetic global cancellation");
+    if (mode === "already-global") controller.abort(reason);
+    const originalTimeout = AbortSignal.timeout.bind(AbortSignal);
+    let timeout: AbortSignal | undefined;
+    const spy = vi.spyOn(AbortSignal, "timeout").mockImplementationOnce(ms => {
+      timeout = originalTimeout(ms);
+      return timeout;
+    });
+    try {
+      const signal = conflictCaseSignal(controller.signal, mode === "timeout" ? 10 : 60_000);
+      const pending = withinSmokeDeadline(() => new Promise<never>(() => undefined), signal);
+      if (mode === "global") controller.abort(reason);
+      await expect(pending).rejects.toThrow("Smoke deadline reached");
+      expect(signal.reason).toBe(mode === "timeout" ? timeout!.reason : reason);
+      expect(getEventListeners(timeout!, "abort")).toHaveLength(0);
+      expect(getEventListeners(signal, "abort")).toHaveLength(0);
+      expect(getEventListeners(controller.signal, "abort")).toHaveLength(0);
+    } finally { controller.abort(); spy.mockRestore(); }
+  });
+
+  it.each(["timeout", "global"] as const)("retains the case deadline across forced GC and drains the queue: %s", mode => {
+    const program = `
+      require(${JSON.stringify(require.resolve("tsx/cjs"))});
+      const {conflictCaseSignal}=require(${JSON.stringify(require.resolve("../scripts/qa-identity-conflict-review.ts"))});
+      const {withinSmokeDeadline}=require(${JSON.stringify(require.resolve("../scripts/identity-live-smoke-runner.ts"))});
+      const {StreamProviderRegistry,StreamResolver}=require(${JSON.stringify(require.resolve("../src/streams/resolver.ts"))});
+      const {ExternalUrlPolicy}=require(${JSON.stringify(require.resolve("../src/network/url-policy.ts"))});
+      const {getEventListeners}=require('node:events');
+      const controller=new AbortController();
+      const reason=new Error('Synthetic global cancellation');
+      const state={abort:false,deadlineRejected:false,resolverSettled:false,started:0};
+      const signal=conflictCaseSignal(controller.signal,${mode === "timeout" ? 350 : 60_000});
+      signal.addEventListener('abort',()=>{state.abort=true;},{once:true});
+      const registry=new StreamProviderRegistry(1000,{debug(){},info(){},warn(){},error(){}},2);
+      for(let i=0;i<28;i++) registry.register({id:'synthetic-'+i,name:'Synthetic',isEnabled:()=>true,
+        resolve:(_item,context)=>{
+          state.started++;
+          if(i===0)return Promise.resolve([]);
+          return new Promise((_resolve,reject)=>{
+            if(context.signal.aborted)reject(new Error('Cancelled'));
+            else context.signal.addEventListener('abort',()=>reject(new Error('Cancelled')),{once:true});
+          });
+        }});
+      const item={id:'synthetic',kind:'movie',title:'Synthetic Meridian',year:1994,externalIds:{imdb:'tt9999999999'}};
+      const resolver=new StreamResolver(registry,new ExternalUrlPolicy());
+      const pending=resolver.resolve(item,signal);
+      pending.then(()=>{state.resolverSettled=true;},()=>{state.resolverSettled=true;});
+      withinSmokeDeadline(()=>pending,signal).catch(()=>{state.deadlineRejected=true;});
+      let turns=0;
+      function churn(){if(turns++<12)setImmediate(()=>{global.gc();churn();});}
+      churn();
+      ${mode === "global" ? "setTimeout(()=>controller.abort(reason),100);" : ""}
+      setTimeout(()=>{
+        state.globalReason=signal.reason===reason;
+        state.reasonName=signal.reason?.name;
+        state.listeners=getEventListeners(signal,'abort').length;
+        console.log(JSON.stringify(state));
+        controller.abort();
+      },800);
+    `;
+    const env: NodeJS.ProcessEnv = Object.fromEntries(["SYSTEMROOT", "WINDIR", "TEMP", "TMP"]
+      .flatMap(key => process.env[key] === undefined ? [] : [[key, process.env[key]]]));
+    const result = JSON.parse(execFileSync(process.execPath, ["--expose-gc", "-e", program], {
+      cwd: process.cwd(), env, encoding: "utf8", timeout: 4000
+    })) as { abort: boolean; deadlineRejected: boolean; resolverSettled: boolean;
+      started: number; listeners: number; globalReason: boolean; reasonName: string };
+    expect(result).toMatchObject({ abort: true, deadlineRejected: true, resolverSettled: true, started: 3, listeners: 0 });
+    expect(result.globalReason).toBe(mode === "global");
+    expect(result.reasonName).toBe(mode === "timeout" ? "TimeoutError" : "Error");
   });
 
   it("distinguishes missing intake at the deadline from observed partial intake after cancellation drains", async () => {

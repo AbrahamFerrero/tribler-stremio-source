@@ -1,0 +1,2486 @@
+{
+  "schema": 1,
+  "date": "2026-11-04",
+  "status": "LOCAL_VALIDATED",
+  "publication": "NOT_AUTHORIZED",
+  "historicalReportsUnchanged": true,
+  "baseSha": "ae7797e41931778940d87f3a5c58b13c6df31c89",
+  "platform": "Windows x64",
+  "cause": "Node 20.19.0 can collect the timeout source of AbortSignal.any; observed before deadline with forced GC.",
+  "observations": {
+    "historicalNode20": {
+      "node": "v20.19.0",
+      "mode": "original",
+      "abort": false,
+      "deadlineRejected": false,
+      "resolverSettled": false,
+      "started": 5,
+      "collectedBeforeDeadline": true,
+      "timeoutCollected": true,
+      "globalListeners": 0
+    },
+    "historicalNode20StrongControl": {
+      "node": "v20.19.0",
+      "mode": "held",
+      "abort": true,
+      "deadlineRejected": true,
+      "resolverSettled": true,
+      "started": 3,
+      "collectedBeforeDeadline": false,
+      "reason": "TimeoutError",
+      "timeoutCollected": false,
+      "globalListeners": 0
+    },
+    "historicalNode22": {
+      "node": "v22.23.2",
+      "mode": "original",
+      "abort": true,
+      "deadlineRejected": true,
+      "resolverSettled": true,
+      "started": 3,
+      "collectedBeforeDeadline": false,
+      "reason": "TimeoutError",
+      "timeoutCollected": false,
+      "globalListeners": 0
+    },
+    "correctedNode20": {
+      "node": "v20.19.0",
+      "mode": "original",
+      "abort": true,
+      "deadlineRejected": true,
+      "resolverSettled": true,
+      "started": 3,
+      "collectedBeforeDeadline": false,
+      "reason": "TimeoutError",
+      "timeoutCollected": false,
+      "globalListeners": 0
+    }
+  },
+  "repeatedFocusedTests": [
+    {
+      "runtime": "node20",
+      "case": "isolated-1",
+      "coverage": false,
+      "exit": 0
+    },
+    {
+      "runtime": "node20",
+      "case": "isolated-2",
+      "coverage": false,
+      "exit": 0
+    },
+    {
+      "runtime": "node20",
+      "case": "isolated-3",
+      "coverage": false,
+      "exit": 0
+    },
+    {
+      "runtime": "node20",
+      "case": "isolated-4",
+      "coverage": false,
+      "exit": 0
+    },
+    {
+      "runtime": "node20",
+      "case": "isolated-5",
+      "coverage": false,
+      "exit": 0
+    },
+    {
+      "runtime": "node20",
+      "case": "isolated-6",
+      "coverage": false,
+      "exit": 0
+    },
+    {
+      "runtime": "node20",
+      "case": "isolated-7",
+      "coverage": false,
+      "exit": 0
+    },
+    {
+      "runtime": "node20",
+      "case": "isolated-8",
+      "coverage": false,
+      "exit": 0
+    },
+    {
+      "runtime": "node20",
+      "case": "isolated-9",
+      "coverage": false,
+      "exit": 0
+    },
+    {
+      "runtime": "node20",
+      "case": "isolated-10",
+      "coverage": false,
+      "exit": 0
+    },
+    {
+      "runtime": "node20",
+      "case": "covered-1",
+      "coverage": true,
+      "exit": 0
+    },
+    {
+      "runtime": "node20",
+      "case": "covered-2",
+      "coverage": true,
+      "exit": 0
+    },
+    {
+      "runtime": "node20",
+      "case": "covered-3",
+      "coverage": true,
+      "exit": 0
+    },
+    {
+      "runtime": "node22",
+      "case": "file",
+      "coverage": false,
+      "exit": 0
+    },
+    {
+      "runtime": "node22",
+      "case": "covered-file",
+      "coverage": true,
+      "exit": 0
+    }
+  ],
+  "candidateCoverageNode22": {
+    "lines": {
+      "total": 5747,
+      "covered": 5364,
+      "skipped": 0,
+      "pct": 93.33
+    },
+    "statements": {
+      "total": 7548,
+      "covered": 6725,
+      "skipped": 0,
+      "pct": 89.09
+    },
+    "functions": {
+      "total": 1191,
+      "covered": 1098,
+      "skipped": 0,
+      "pct": 92.19
+    },
+    "branches": {
+      "total": 7611,
+      "covered": 6650,
+      "skipped": 0,
+      "pct": 87.37
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "comparisonNode20": {
+    "referenceKind": "corrected-reference",
+    "historicalShaUnmodified": false,
+    "originSha": "ae7797e41931778940d87f3a5c58b13c6df31c89",
+    "runtime": "v20.19.0",
+    "files": 93,
+    "mapsIdentical": true,
+    "instrumentedSourcesIdentical": true,
+    "referenceSummary": {
+      "lines": {
+        "total": 5747,
+        "covered": 5364,
+        "skipped": 0,
+        "pct": 93.33
+      },
+      "statements": {
+        "total": 7548,
+        "covered": 6726,
+        "skipped": 0,
+        "pct": 89.1
+      },
+      "functions": {
+        "total": 1191,
+        "covered": 1098,
+        "skipped": 0,
+        "pct": 92.19
+      },
+      "branches": {
+        "total": 7611,
+        "covered": 6650,
+        "skipped": 0,
+        "pct": 87.37
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "candidateSummary": {
+      "lines": {
+        "total": 5747,
+        "covered": 5364,
+        "skipped": 0,
+        "pct": 93.33
+      },
+      "statements": {
+        "total": 7548,
+        "covered": 6726,
+        "skipped": 0,
+        "pct": 89.1
+      },
+      "functions": {
+        "total": 1191,
+        "covered": 1098,
+        "skipped": 0,
+        "pct": 92.19
+      },
+      "branches": {
+        "total": 7611,
+        "covered": 6650,
+        "skipped": 0,
+        "pct": 87.37
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "counterDifferences": [
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "92",
+        "before": 4485,
+        "after": 4484,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 215,
+            "column": 4
+          },
+          "end": {
+            "line": 218,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "119",
+        "before": 272,
+        "after": 271,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 272,
+            "column": 8
+          },
+          "end": {
+            "line": 272,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "120",
+        "before": 272,
+        "after": 271,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 273,
+            "column": 8
+          },
+          "end": {
+            "line": 273,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "122",
+        "before": 64,
+        "after": 65,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 276,
+            "column": 22
+          },
+          "end": {
+            "line": 276,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "123",
+        "before": 64,
+        "after": 65,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 277,
+            "column": 8
+          },
+          "end": {
+            "line": 277,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "124",
+        "before": 64,
+        "after": 65,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 277,
+            "column": 24
+          },
+          "end": {
+            "line": 277,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "125",
+        "before": 64,
+        "after": 65,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 278,
+            "column": 8
+          },
+          "end": {
+            "line": 278,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "128",
+        "before": 1615,
+        "after": 1614,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 286,
+            "column": 17
+          },
+          "end": {
+            "line": 286,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "129",
+        "before": 1615,
+        "after": 1614,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 287,
+            "column": 4
+          },
+          "end": {
+            "line": 288,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "130",
+        "before": 272,
+        "after": 271,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 287,
+            "column": 14
+          },
+          "end": {
+            "line": 287,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "148",
+        "before": 3309,
+        "after": 3308,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 301,
+            "column": 84
+          },
+          "end": {
+            "line": 301,
+            "column": 169
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "155",
+        "before": 65,
+        "after": 66,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 303,
+            "column": 53
+          },
+          "end": {
+            "line": 303,
+            "column": 73
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "156",
+        "before": 65,
+        "after": 66,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 303,
+            "column": 73
+          },
+          "end": {
+            "line": 303,
+            "column": 84
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "157",
+        "before": 1615,
+        "after": 1614,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 304,
+            "column": 6
+          },
+          "end": {
+            "line": 371,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "158",
+        "before": 1615,
+        "after": 1614,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 305,
+            "column": 6
+          },
+          "end": {
+            "line": 305,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "161",
+        "before": 1612,
+        "after": 1611,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 306,
+            "column": 22
+          },
+          "end": {
+            "line": 306,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "162",
+        "before": 1612,
+        "after": 1611,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 307,
+            "column": 22
+          },
+          "end": {
+            "line": 307,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "167",
+        "before": 1612,
+        "after": 1611,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 312,
+            "column": 10
+          },
+          "end": {
+            "line": 312,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "169",
+        "before": 1612,
+        "after": 1611,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 313,
+            "column": 10
+          },
+          "end": {
+            "line": 313,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "170",
+        "before": 1612,
+        "after": 1611,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 314,
+            "column": 10
+          },
+          "end": {
+            "line": 314,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "172",
+        "before": 1604,
+        "after": 1603,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 317,
+            "column": 10
+          },
+          "end": {
+            "line": 317,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "173",
+        "before": 1604,
+        "after": 1603,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 318,
+            "column": 26
+          },
+          "end": {
+            "line": 318,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "174",
+        "before": 1604,
+        "after": 1603,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 319,
+            "column": 10
+          },
+          "end": {
+            "line": 319,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "175",
+        "before": 1604,
+        "after": 1603,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 320,
+            "column": 10
+          },
+          "end": {
+            "line": 320,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "176",
+        "before": 51,
+        "after": 50,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 320,
+            "column": 35
+          },
+          "end": {
+            "line": 320,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "180",
+        "before": 1612,
+        "after": 1611,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 327,
+            "column": 12
+          },
+          "end": {
+            "line": 327,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "181",
+        "before": 60,
+        "after": 59,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 327,
+            "column": 34
+          },
+          "end": {
+            "line": 327,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "182",
+        "before": 1612,
+        "after": 1611,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 328,
+            "column": 12
+          },
+          "end": {
+            "line": 328,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "183",
+        "before": 1612,
+        "after": 1611,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 329,
+            "column": 12
+          },
+          "end": {
+            "line": 329,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "185",
+        "before": 1612,
+        "after": 1611,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 330,
+            "column": 12
+          },
+          "end": {
+            "line": 330,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "186",
+        "before": 1612,
+        "after": 1611,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 333,
+            "column": 10
+          },
+          "end": {
+            "line": 333,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "187",
+        "before": 1612,
+        "after": 1611,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 334,
+            "column": 10
+          },
+          "end": {
+            "line": 338,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "188",
+        "before": 60,
+        "after": 59,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 335,
+            "column": 28
+          },
+          "end": {
+            "line": 335,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "189",
+        "before": 60,
+        "after": 59,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 336,
+            "column": 12
+          },
+          "end": {
+            "line": 336,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "190",
+        "before": 60,
+        "after": 59,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 337,
+            "column": 12
+          },
+          "end": {
+            "line": 337,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "198",
+        "before": 139,
+        "after": 138,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 351,
+            "column": 24
+          },
+          "end": {
+            "line": 351,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "199",
+        "before": 139,
+        "after": 138,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 352,
+            "column": 8
+          },
+          "end": {
+            "line": 352,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "200",
+        "before": 139,
+        "after": 138,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 353,
+            "column": 8
+          },
+          "end": {
+            "line": 355,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "203",
+        "before": 139,
+        "after": 138,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 357,
+            "column": 24
+          },
+          "end": {
+            "line": 359,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "204",
+        "before": 139,
+        "after": 138,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 360,
+            "column": 8
+          },
+          "end": {
+            "line": 364,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "205",
+        "before": 139,
+        "after": 138,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 366,
+            "column": 8
+          },
+          "end": {
+            "line": 366,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "206",
+        "before": 139,
+        "after": 138,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 367,
+            "column": 8
+          },
+          "end": {
+            "line": 367,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "s",
+        "id": "207",
+        "before": 1615,
+        "after": 1614,
+        "coveredStatusChanged": false,
+        "location": {
+          "start": {
+            "line": 370,
+            "column": 8
+          },
+          "end": {
+            "line": 370,
+            "column": null
+          }
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "f",
+        "id": "26",
+        "before": 4485,
+        "after": 4484,
+        "coveredStatusChanged": false,
+        "location": {
+          "name": "details",
+          "decl": {
+            "start": {
+              "line": 214,
+              "column": 2
+            },
+            "end": {
+              "line": 214,
+              "column": 10
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 214,
+              "column": 114
+            },
+            "end": {
+              "line": 219,
+              "column": null
+            }
+          },
+          "line": 214
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "f",
+        "id": "36",
+        "before": 272,
+        "after": 271,
+        "coveredStatusChanged": false,
+        "location": {
+          "name": "(anonymous_36)",
+          "decl": {
+            "start": {
+              "line": 271,
+              "column": 12
+            },
+            "end": {
+              "line": 271,
+              "column": 35
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 271,
+              "column": 35
+            },
+            "end": {
+              "line": 274,
+              "column": null
+            }
+          },
+          "line": 271
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "f",
+        "id": "37",
+        "before": 64,
+        "after": 65,
+        "coveredStatusChanged": false,
+        "location": {
+          "name": "(anonymous_37)",
+          "decl": {
+            "start": {
+              "line": 275,
+              "column": 12
+            },
+            "end": {
+              "line": 275,
+              "column": 36
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 275,
+              "column": 36
+            },
+            "end": {
+              "line": 279,
+              "column": null
+            }
+          },
+          "line": 275
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "f",
+        "id": "38",
+        "before": 1615,
+        "after": 1614,
+        "coveredStatusChanged": false,
+        "location": {
+          "name": "releaseProviderSlot",
+          "decl": {
+            "start": {
+              "line": 285,
+              "column": 2
+            },
+            "end": {
+              "line": 285,
+              "column": 10
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 285,
+              "column": 38
+            },
+            "end": {
+              "line": 289,
+              "column": null
+            }
+          },
+          "line": 285
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "f",
+        "id": "44",
+        "before": 3309,
+        "after": 3308,
+        "coveredStatusChanged": false,
+        "location": {
+          "name": "(anonymous_44)",
+          "decl": {
+            "start": {
+              "line": 301,
+              "column": 12
+            },
+            "end": {
+              "line": 301,
+              "column": 21
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 301,
+              "column": 82
+            },
+            "end": {
+              "line": 301,
+              "column": null
+            }
+          },
+          "line": 301
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "f",
+        "id": "46",
+        "before": 1612,
+        "after": 1611,
+        "coveredStatusChanged": false,
+        "location": {
+          "name": "(anonymous_46)",
+          "decl": {
+            "start": {
+              "line": 311,
+              "column": 44
+            },
+            "end": {
+              "line": 311,
+              "column": 55
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 311,
+              "column": 55
+            },
+            "end": {
+              "line": 315,
+              "column": 9
+            }
+          },
+          "line": 311
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "f",
+        "id": "47",
+        "before": 1604,
+        "after": 1603,
+        "coveredStatusChanged": false,
+        "location": {
+          "name": "(anonymous_47)",
+          "decl": {
+            "start": {
+              "line": 316,
+              "column": 14
+            },
+            "end": {
+              "line": 316,
+              "column": 38
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 316,
+              "column": 38
+            },
+            "end": {
+              "line": 321,
+              "column": null
+            }
+          },
+          "line": 316
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "f",
+        "id": "48",
+        "before": 1612,
+        "after": 1611,
+        "coveredStatusChanged": false,
+        "location": {
+          "name": "(anonymous_48)",
+          "decl": {
+            "start": {
+              "line": 326,
+              "column": 30
+            },
+            "end": {
+              "line": 326,
+              "column": 65
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 326,
+              "column": 85
+            },
+            "end": {
+              "line": 331,
+              "column": 11
+            }
+          },
+          "line": 326
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "f",
+        "id": "49",
+        "before": 60,
+        "after": 59,
+        "coveredStatusChanged": false,
+        "location": {
+          "name": "(anonymous_49)",
+          "decl": {
+            "start": {
+              "line": 327,
+              "column": 12
+            },
+            "end": {
+              "line": 327,
+              "column": 34
+            }
+          },
+          "loc": {
+            "start": {
+              "line": 327,
+              "column": 34
+            },
+            "end": {
+              "line": 327,
+              "column": null
+            }
+          },
+          "line": 327
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "42",
+        "before": [
+          255,
+          4230
+        ],
+        "after": [
+          255,
+          4229
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 216,
+              "column": 10
+            },
+            "end": {
+              "line": 216,
+              "column": null
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 216,
+                "column": 26
+              },
+              "end": {
+                "line": 216,
+                "column": 52
+              }
+            },
+            {
+              "start": {
+                "line": 216,
+                "column": 52
+              },
+              "end": {
+                "line": 216,
+                "column": null
+              }
+            }
+          ],
+          "line": 216
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "43",
+        "before": [
+          4485,
+          4248
+        ],
+        "after": [
+          4484,
+          4247
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 217,
+              "column": 10
+            },
+            "end": {
+              "line": 217,
+              "column": null
+            }
+          },
+          "type": "binary-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 217,
+                "column": 10
+              },
+              "end": {
+                "line": 217,
+                "column": 44
+              }
+            },
+            {
+              "start": {
+                "line": 217,
+                "column": 44
+              },
+              "end": {
+                "line": 217,
+                "column": null
+              }
+            }
+          ],
+          "line": 217
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "54",
+        "before": [
+          64,
+          0
+        ],
+        "after": [
+          65,
+          0
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 277,
+              "column": 8
+            },
+            "end": {
+              "line": 277,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 277,
+                "column": 8
+              },
+              "end": {
+                "line": 277,
+                "column": null
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 277
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "55",
+        "before": [
+          272,
+          1343
+        ],
+        "after": [
+          271,
+          1343
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 287,
+              "column": 4
+            },
+            "end": {
+              "line": 288,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 287,
+                "column": 4
+              },
+              "end": {
+                "line": 288,
+                "column": null
+              }
+            },
+            {
+              "start": {
+                "line": 288,
+                "column": 9
+              },
+              "end": {
+                "line": 288,
+                "column": null
+              }
+            }
+          ],
+          "line": 287
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "62",
+        "before": [
+          752,
+          2557
+        ],
+        "after": [
+          752,
+          2556
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 301,
+              "column": 84
+            },
+            "end": {
+              "line": 301,
+              "column": 169
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 301,
+                "column": 84
+              },
+              "end": {
+                "line": 301,
+                "column": 169
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 301
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "63",
+        "before": [
+          3309,
+          764
+        ],
+        "after": [
+          3308,
+          764
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 301,
+              "column": 88
+            },
+            "end": {
+              "line": 301,
+              "column": 123
+            }
+          },
+          "type": "binary-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 301,
+                "column": 88
+              },
+              "end": {
+                "line": 301,
+                "column": 103
+              }
+            },
+            {
+              "start": {
+                "line": 301,
+                "column": 103
+              },
+              "end": {
+                "line": 301,
+                "column": 123
+              }
+            }
+          ],
+          "line": 301
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "65",
+        "before": [
+          65,
+          1615
+        ],
+        "after": [
+          66,
+          1614
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 303,
+              "column": 6
+            },
+            "end": {
+              "line": 303,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 303,
+                "column": 6
+              },
+              "end": {
+                "line": 303,
+                "column": null
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 303
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "66",
+        "before": [
+          3,
+          1612
+        ],
+        "after": [
+          3,
+          1611
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 305,
+              "column": 6
+            },
+            "end": {
+              "line": 305,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 305,
+                "column": 6
+              },
+              "end": {
+                "line": 305,
+                "column": null
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 305
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "67",
+        "before": [
+          1615,
+          1612
+        ],
+        "after": [
+          1614,
+          1611
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 305,
+              "column": 10
+            },
+            "end": {
+              "line": 305,
+              "column": 68
+            }
+          },
+          "type": "binary-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 305,
+                "column": 10
+              },
+              "end": {
+                "line": 305,
+                "column": 29
+              }
+            },
+            {
+              "start": {
+                "line": 305,
+                "column": 29
+              },
+              "end": {
+                "line": 305,
+                "column": 68
+              }
+            }
+          ],
+          "line": 305
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "69",
+        "before": [
+          1612,
+          1518
+        ],
+        "after": [
+          1611,
+          1518
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 307,
+              "column": 42
+            },
+            "end": {
+              "line": 307,
+              "column": 78
+            }
+          },
+          "type": "binary-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 307,
+                "column": 42
+              },
+              "end": {
+                "line": 307,
+                "column": 64
+              }
+            },
+            {
+              "start": {
+                "line": 307,
+                "column": 64
+              },
+              "end": {
+                "line": 307,
+                "column": 78
+              }
+            }
+          ],
+          "line": 307
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "70",
+        "before": [
+          441,
+          1171
+        ],
+        "after": [
+          440,
+          1171
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 308,
+              "column": 23
+            },
+            "end": {
+              "line": 308,
+              "column": null
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 308,
+                "column": 32
+              },
+              "end": {
+                "line": 308,
+                "column": 69
+              }
+            },
+            {
+              "start": {
+                "line": 308,
+                "column": 69
+              },
+              "end": {
+                "line": 308,
+                "column": null
+              }
+            }
+          ],
+          "line": 308
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "71",
+        "before": [
+          0,
+          1612
+        ],
+        "after": [
+          0,
+          1611
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 312,
+              "column": 10
+            },
+            "end": {
+              "line": 312,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 312,
+                "column": 10
+              },
+              "end": {
+                "line": 312,
+                "column": null
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 312
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "72",
+        "before": [
+          51,
+          1553
+        ],
+        "after": [
+          50,
+          1553
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 320,
+              "column": 10
+            },
+            "end": {
+              "line": 320,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 320,
+                "column": 10
+              },
+              "end": {
+                "line": 320,
+                "column": null
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 320
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "73",
+        "before": [
+          0,
+          1612
+        ],
+        "after": [
+          0,
+          1611
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 329,
+              "column": 12
+            },
+            "end": {
+              "line": 329,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 329,
+                "column": 12
+              },
+              "end": {
+                "line": 329,
+                "column": null
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 329
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "74",
+        "before": [
+          60,
+          1552
+        ],
+        "after": [
+          59,
+          1552
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 334,
+              "column": 10
+            },
+            "end": {
+              "line": 338,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 334,
+                "column": 10
+              },
+              "end": {
+                "line": 338,
+                "column": null
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 334
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "75",
+        "before": [
+          1612,
+          60
+        ],
+        "after": [
+          1611,
+          59
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 334,
+              "column": 14
+            },
+            "end": {
+              "line": 334,
+              "column": 44
+            }
+          },
+          "type": "binary-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 334,
+                "column": 14
+              },
+              "end": {
+                "line": 334,
+                "column": 34
+              }
+            },
+            {
+              "start": {
+                "line": 334,
+                "column": 34
+              },
+              "end": {
+                "line": 334,
+                "column": 44
+              }
+            }
+          ],
+          "line": 334
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "76",
+        "before": [
+          60,
+          59
+        ],
+        "after": [
+          59,
+          58
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 335,
+              "column": 28
+            },
+            "end": {
+              "line": 335,
+              "column": null
+            }
+          },
+          "type": "binary-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 335,
+                "column": 28
+              },
+              "end": {
+                "line": 335,
+                "column": 69
+              }
+            },
+            {
+              "start": {
+                "line": 335,
+                "column": 69
+              },
+              "end": {
+                "line": 335,
+                "column": null
+              }
+            }
+          ],
+          "line": 335
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "80",
+        "before": [
+          8,
+          131
+        ],
+        "after": [
+          8,
+          130
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 351,
+              "column": 24
+            },
+            "end": {
+              "line": 351,
+              "column": null
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 351,
+                "column": 42
+              },
+              "end": {
+                "line": 351,
+                "column": 56
+              }
+            },
+            {
+              "start": {
+                "line": 351,
+                "column": 56
+              },
+              "end": {
+                "line": 351,
+                "column": null
+              }
+            }
+          ],
+          "line": 351
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "81",
+        "before": [
+          52,
+          79
+        ],
+        "after": [
+          51,
+          79
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 351,
+              "column": 56
+            },
+            "end": {
+              "line": 351,
+              "column": null
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 351,
+                "column": 74
+              },
+              "end": {
+                "line": 351,
+                "column": 88
+              }
+            },
+            {
+              "start": {
+                "line": 351,
+                "column": 88
+              },
+              "end": {
+                "line": 351,
+                "column": null
+              }
+            }
+          ],
+          "line": 351
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "82",
+        "before": [
+          39,
+          100
+        ],
+        "after": [
+          39,
+          99
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 353,
+              "column": 8
+            },
+            "end": {
+              "line": 355,
+              "column": null
+            }
+          },
+          "type": "if",
+          "locations": [
+            {
+              "start": {
+                "line": 353,
+                "column": 8
+              },
+              "end": {
+                "line": 355,
+                "column": null
+              }
+            },
+            {
+              "start": {},
+              "end": {}
+            }
+          ],
+          "line": 353
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "83",
+        "before": [
+          139,
+          42,
+          42
+        ],
+        "after": [
+          138,
+          42,
+          42
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 353,
+              "column": 12
+            },
+            "end": {
+              "line": 353,
+              "column": 83
+            }
+          },
+          "type": "binary-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 353,
+                "column": 12
+              },
+              "end": {
+                "line": 353,
+                "column": 36
+              }
+            },
+            {
+              "start": {
+                "line": 353,
+                "column": 36
+              },
+              "end": {
+                "line": 353,
+                "column": 58
+              }
+            },
+            {
+              "start": {
+                "line": 353,
+                "column": 58
+              },
+              "end": {
+                "line": 353,
+                "column": 83
+              }
+            }
+          ],
+          "line": 353
+        }
+      },
+      {
+        "file": "src/streams/resolver.ts",
+        "kind": "b",
+        "id": "85",
+        "before": [
+          60,
+          79
+        ],
+        "after": [
+          59,
+          79
+        ],
+        "coveredStatusChanged": false,
+        "location": {
+          "loc": {
+            "start": {
+              "line": 357,
+              "column": 24
+            },
+            "end": {
+              "line": 359,
+              "column": null
+            }
+          },
+          "type": "cond-expr",
+          "locations": [
+            {
+              "start": {
+                "line": 358,
+                "column": 12
+              },
+              "end": {
+                "line": 358,
+                "column": null
+              }
+            },
+            {
+              "start": {
+                "line": 359,
+                "column": 12
+              },
+              "end": {
+                "line": 359,
+                "column": null
+              }
+            }
+          ],
+          "line": 357
+        }
+      }
+    ]
+  },
+  "finalGates": [
+    {
+      "gate": "corrected-reference-ci",
+      "exit": 0,
+      "seconds": 121.05
+    },
+    {
+      "gate": "corrected-reference-node20-coverage",
+      "exit": 0,
+      "seconds": 45.81
+    },
+    {
+      "gate": "candidate-ci",
+      "exit": 0,
+      "seconds": 11.84
+    },
+    {
+      "gate": "candidate-node20-coverage",
+      "exit": 0,
+      "seconds": 52.67
+    },
+    {
+      "gate": "candidate-node20-typecheck",
+      "exit": 0,
+      "seconds": 10.94
+    },
+    {
+      "gate": "candidate-node20-lint",
+      "exit": 0,
+      "seconds": 18.27
+    },
+    {
+      "gate": "candidate-node20-build",
+      "exit": 0,
+      "seconds": 2.67
+    },
+    {
+      "gate": "candidate-node20-test-system",
+      "exit": 0,
+      "seconds": 16.74
+    },
+    {
+      "gate": "candidate-node20-security-repo",
+      "exit": 0,
+      "seconds": 1.69
+    },
+    {
+      "gate": "candidate-audit",
+      "exit": 0,
+      "seconds": 5.66
+    },
+    {
+      "gate": "candidate-audit-production",
+      "exit": 0,
+      "seconds": 1.25
+    },
+    {
+      "gate": "candidate-tree",
+      "exit": 0,
+      "seconds": 0.83
+    },
+    {
+      "gate": "candidate-node22-coverage",
+      "exit": 0,
+      "seconds": 33.72
+    },
+    {
+      "gate": "candidate-provenance-tests",
+      "exit": 0,
+      "seconds": 0.3
+    },
+    {
+      "gate": "candidate-runner-guards",
+      "exit": 0,
+      "seconds": 8.62
+    }
+  ],
+  "sourceSha256": {
+    "scripts/qa-identity-conflict-review.ts": "c26ff3c1e6fb845b27e3384866b39988a813fa0fa5b17859c886d781a46f0dbf",
+    "tests/qa-identity-conflict-review.test.ts": "d24ebca5d19464102b8afacbd25fcc5ef6393e8a33d73839d131a06968b7ea49",
+    "docs/qa/magicast_reproduce.py": "74955ea3652671b3ea9efba44403f4bb5f4e6b8e396e85b5c65430670aa0cd39",
+    "docs/qa/magicast_collect.py": "0040c0871df672c3794824b68fd9d4f7656636e1f623d53759a3429728e11383",
+    "docs/qa/test_conflict_deadline_reference.py": "5bae148e1985cc6542f2afc7827fb535dd11e831dd434d78dcbf3b83197a2715"
+  },
+  "reference": {
+    "kind": "corrected-reference",
+    "historicalSha": "ae7797e41931778940d87f3a5c58b13c6df31c89",
+    "historicalShaUnmodified": false,
+    "commonPatchSha256": {
+      "scripts/qa-identity-conflict-review.ts": "c26ff3c1e6fb845b27e3384866b39988a813fa0fa5b17859c886d781a46f0dbf",
+      "tests/qa-identity-conflict-review.test.ts": "d24ebca5d19464102b8afacbd25fcc5ef6393e8a33d73839d131a06968b7ea49"
+    },
+    "magicast": "0.5.5"
+  },
+  "preservedPriorFilesByteIdentical": 10,
+  "priorFilesWithScopedProvenanceAdditions": [
+    "docs/qa/magicast_collect.py",
+    "docs/qa/magicast_reproduce.py"
+  ],
+  "auditVulnerabilities": 0,
+  "productionAuditVulnerabilities": 0,
+  "hostedCI": "NOT RUN",
+  "linux": "NOT RUN",
+  "limits": [
+    "Historical SHA retains its original failure; corrected reference is origin SHA plus explicitly hashed common patch.",
+    "Full coverage includes unit, integration, acceptance and security suites; system executed separately.",
+    "No separate rerun of the 25-gate Magicast campaign."
+  ]
+}

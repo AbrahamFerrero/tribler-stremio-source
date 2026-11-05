@@ -61,8 +61,18 @@ export function conflictConfig(configured: AppConfig, args: ReturnType<typeof pa
 }
 
 export function conflictCaseSignal(global: AbortSignal, caseDeadlineMs: number): AbortSignal {
-  // The global deadline always wins, even when the last case has less time left.
-  return AbortSignal.any([global, AbortSignal.timeout(caseDeadlineMs)]);
+  // Node 20's AbortSignal.any keeps only weak references to its sources. Keep
+  // the timeout alive until either source aborts, then release both listeners.
+  const timeout = AbortSignal.timeout(caseDeadlineMs);
+  const combined = AbortSignal.any([global, timeout]);
+  const release = (): void => {
+    timeout.removeEventListener("abort", release);
+    combined.removeEventListener("abort", release);
+  };
+  timeout.addEventListener("abort", release, { once: true });
+  combined.addEventListener("abort", release, { once: true });
+  if (combined.aborted) release();
+  return combined;
 }
 
 /** Require an existing directory outside every Git worktree, including ignored directories. */

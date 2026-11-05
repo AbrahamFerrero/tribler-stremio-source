@@ -36,6 +36,11 @@ jobs:
         id: node_dependencies
         run: npm ci
 
+      - name: Verify Magicast remediation and adversarial runner paths
+        run: |
+          python -m unittest discover -s docs/qa -p "test_*.py" -v
+          python docs/qa/v1.5.2-magicast-probe.py --label ci-linux
+
       - name: Check repository safety
         run: npm run security:repo
 
@@ -120,6 +125,13 @@ jobs:
       - name: Install Node.js dependencies
         id: node_dependencies
         run: npm ci
+
+      - name: Verify Magicast remediation and adversarial runner paths
+        run: |
+          python -m unittest discover -s docs/qa -p "test_*.py" -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python docs/qa/v1.5.2-magicast-probe.py --label ci-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Type-check and build
         run: |

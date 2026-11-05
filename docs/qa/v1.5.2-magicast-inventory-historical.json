@@ -1,0 +1,543 @@
+{
+  "schema": 2,
+  "state": "NO_GO",
+  "base": "ae7797e41931778940d87f3a5c58b13c6df31c89",
+  "scope": "Windows local source-only reproduction; no hosted CI certification",
+  "runs": [
+    {
+      "runId": "run-w_c6j0h2",
+      "manifestSha256": "271fb139945fa5e61be5b426cc5376080f814970d22e2a1472b1334276d66671",
+      "runtime": "v22.23.2",
+      "base": "ae7797e41931778940d87f3a5c58b13c6df31c89",
+      "lockSha256": "dc6bae1ff1ef1f29589349f925fd58b2e88f508a9ba8d2b1621e104aacf9c307",
+      "gates": [
+        {
+          "name": "baseline-git-init",
+          "exit": 0
+        },
+        {
+          "name": "candidate-git-init",
+          "exit": 0
+        },
+        {
+          "name": "baseline-ci",
+          "exit": 0
+        },
+        {
+          "name": "baseline-probe",
+          "exit": 0
+        },
+        {
+          "name": "reject-vulnerable-release",
+          "exit": 0
+        },
+        {
+          "name": "reject-vulnerable-baseline",
+          "exit": 0
+        },
+        {
+          "name": "reject-vulnerable-candidate",
+          "exit": 0
+        },
+        {
+          "name": "baseline-coverage",
+          "exit": 0
+        },
+        {
+          "name": "candidate-ci",
+          "exit": 0
+        },
+        {
+          "name": "candidate-second-ci",
+          "exit": 0
+        },
+        {
+          "name": "runner-negative-tests",
+          "exit": 0
+        },
+        {
+          "name": "candidate-probe",
+          "exit": 0
+        },
+        {
+          "name": "candidate-typecheck",
+          "exit": 0
+        },
+        {
+          "name": "candidate-lint",
+          "exit": 0
+        },
+        {
+          "name": "candidate-build",
+          "exit": 0
+        },
+        {
+          "name": "candidate-test",
+          "exit": 0
+        },
+        {
+          "name": "candidate-test-integration",
+          "exit": 0
+        },
+        {
+          "name": "candidate-test-acceptance",
+          "exit": 0
+        },
+        {
+          "name": "candidate-test-system",
+          "exit": 0
+        },
+        {
+          "name": "candidate-test-security",
+          "exit": 0
+        },
+        {
+          "name": "candidate-security-repo",
+          "exit": 0
+        },
+        {
+          "name": "candidate-coverage",
+          "exit": 0
+        },
+        {
+          "name": "candidate-tree",
+          "exit": 0
+        },
+        {
+          "name": "candidate-audit",
+          "exit": 0
+        },
+        {
+          "name": "candidate-audit-production",
+          "exit": 0
+        }
+      ],
+      "baselineSummary": {
+        "lines": {
+          "total": 5747,
+          "covered": 5364,
+          "skipped": 0,
+          "pct": 93.33
+        },
+        "statements": {
+          "total": 7548,
+          "covered": 6725,
+          "skipped": 0,
+          "pct": 89.09
+        },
+        "functions": {
+          "total": 1191,
+          "covered": 1098,
+          "skipped": 0,
+          "pct": 92.19
+        },
+        "branches": {
+          "total": 7611,
+          "covered": 6650,
+          "skipped": 0,
+          "pct": 87.37
+        },
+        "branchesTrue": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 100
+        }
+      },
+      "candidateSummary": {
+        "lines": {
+          "total": 5747,
+          "covered": 5365,
+          "skipped": 0,
+          "pct": 93.35
+        },
+        "statements": {
+          "total": 7548,
+          "covered": 6726,
+          "skipped": 0,
+          "pct": 89.1
+        },
+        "functions": {
+          "total": 1191,
+          "covered": 1098,
+          "skipped": 0,
+          "pct": 92.19
+        },
+        "branches": {
+          "total": 7611,
+          "covered": 6650,
+          "skipped": 0,
+          "pct": 87.37
+        },
+        "branchesTrue": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 100
+        }
+      },
+      "coverageFiles": 93,
+      "mapsIdentical": true,
+      "syntheticMapsAndCountersIdentical": true,
+      "counterDifferences": [
+        {
+          "file": "src/logger.ts",
+          "counterChanges": {
+            "s": {
+              "2": {
+                "before": 229,
+                "after": 231
+              },
+              "4": {
+                "before": 228,
+                "after": 230
+              },
+              "5": {
+                "before": 228,
+                "after": 230
+              },
+              "6": {
+                "before": 228,
+                "after": 230
+              },
+              "8": {
+                "before": 188,
+                "after": 190
+              },
+              "9": {
+                "before": 188,
+                "after": 190
+              },
+              "11": {
+                "before": 188,
+                "after": 190
+              },
+              "12": {
+                "before": 188,
+                "after": 190
+              },
+              "13": {
+                "before": 188,
+                "after": 190
+              },
+              "14": {
+                "before": 3,
+                "after": 5
+              },
+              "15": {
+                "before": 188,
+                "after": 190
+              },
+              "16": {
+                "before": 188,
+                "after": 190
+              },
+              "18": {
+                "before": 188,
+                "after": 190
+              }
+            },
+            "f": {
+              "0": {
+                "before": 229,
+                "after": 231
+              },
+              "1": {
+                "before": 188,
+                "after": 190
+              }
+            },
+            "b": {
+              "0": {
+                "before": [
+                  1,
+                  228
+                ],
+                "after": [
+                  1,
+                  230
+                ]
+              },
+              "1": {
+                "before": [
+                  216,
+                  11
+                ],
+                "after": [
+                  218,
+                  11
+                ]
+              },
+              "2": {
+                "before": [
+                  0,
+                  188
+                ],
+                "after": [
+                  0,
+                  190
+                ]
+              },
+              "3": {
+                "before": [
+                  188,
+                  188
+                ],
+                "after": [
+                  190,
+                  190
+                ]
+              },
+              "4": {
+                "before": [
+                  3,
+                  185
+                ],
+                "after": [
+                  5,
+                  185
+                ]
+              },
+              "5": {
+                "before": [
+                  188,
+                  6
+                ],
+                "after": [
+                  190,
+                  8
+                ]
+              },
+              "6": {
+                "before": [
+                  6,
+                  182
+                ],
+                "after": [
+                  6,
+                  184
+                ]
+              },
+              "7": {
+                "before": [
+                  188,
+                  6,
+                  6,
+                  6
+                ],
+                "after": [
+                  190,
+                  6,
+                  6,
+                  6
+                ]
+              }
+            }
+          }
+        },
+        {
+          "file": "src/managed-download-store.ts",
+          "counterChanges": {
+            "s": {
+              "7": {
+                "before": 96,
+                "after": 131
+              },
+              "14": {
+                "before": 95,
+                "after": 130
+              },
+              "16": {
+                "before": 95,
+                "after": 130
+              },
+              "24": {
+                "before": 161,
+                "after": 126
+              },
+              "26": {
+                "before": 161,
+                "after": 126
+              },
+              "35": {
+                "before": 0,
+                "after": 2
+              }
+            },
+            "f": {},
+            "b": {
+              "1": {
+                "before": [
+                  1,
+                  95
+                ],
+                "after": [
+                  1,
+                  130
+                ]
+              },
+              "8": {
+                "before": [
+                  0,
+                  95
+                ],
+                "after": [
+                  0,
+                  130
+                ]
+              },
+              "15": {
+                "before": [
+                  0,
+                  161
+                ],
+                "after": [
+                  0,
+                  126
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "productionEntries": 131,
+      "artifact": {
+        "node": "v22.23.2",
+        "mode": "candidate",
+        "remediation": true,
+        "magicast": "0.3.5",
+        "sourceMap": "1.2.2",
+        "artifacts": [
+          {
+            "file": "helpers.cjs",
+            "sha256": "8ff1817b915bb37a1d091af76a8f98c6b7ff86775581054b47aaf2665f79ef03",
+            "externalImport": true
+          },
+          {
+            "file": "helpers.mjs",
+            "sha256": "39654aeac8ff3227d20da7936b303a322e3717de88a84c723c30090ac89b47ca",
+            "externalImport": true
+          },
+          {
+            "file": "index.cjs",
+            "sha256": "26b38ba26f111b3dd3c8ed8b74b4ea2389d47b945cf05100d3ce152e8f2fbec6",
+            "externalImport": true
+          },
+          {
+            "file": "index.mjs",
+            "sha256": "2fe6dddb7909c68a4c514655c0064ccec3657028703bf81da72c594bbc10bef4",
+            "externalImport": true
+          }
+        ],
+        "embeddedRejection": null,
+        "externalRejection": [
+          true,
+          true,
+          true,
+          true,
+          true,
+          true,
+          true
+        ],
+        "generatorCalls": 3,
+        "consumerCalls": 2,
+        "configFormsUpdated": 4,
+        "sourceMapComposition": true,
+        "canaryPositiveControl": true
+      },
+      "toolHashes": {
+        "magicast_collect.py": "fc469b75e7fa6adfb7f1604078db5c00308a6bde70be33dab6bcd2a2cc5b9221",
+        "magicast_fixtures.py": "6aab16b0ff61d3d8e95d8db5f0e655a379e16c13e13317b92f0cc610ef5b243f",
+        "magicast_reproduce.py": "e9336005f56086930f9aad2e2d25a01a1f6b867b4aff861337abf72fb9a2fbcd",
+        "magicast_support.py": "9f846cf8bced6be3eb87b3e2bc3c754a4b5ac35a6433073e5d65689044ded812",
+        "test_magicast_probe.py": "aac6f8255655199470e09dc4a4a9d42805c33bbef904aeb738120f488ed7da54",
+        "v1.5.2-magicast-probe.py": "7a4e6c548a0d00348ec6363ce9faf3dd2ad4e1f7b39a23c4aa2aa39f6bab9108"
+      },
+      "state": "SUCCESS",
+      "currentToolsMatchProducer": false
+    },
+    {
+      "runId": "run-b0szw27a",
+      "state": "FAILED",
+      "remediation": false,
+      "manifestSha256": "44332b3ee59f91855b896573e39b3dc28044c05f9474d1369399803804a13525",
+      "runtime": "v20.19.0",
+      "gates": [
+        {
+          "name": "baseline-git-init",
+          "exit": 0
+        },
+        {
+          "name": "candidate-git-init",
+          "exit": 0
+        },
+        {
+          "name": "baseline-ci",
+          "exit": 0
+        },
+        {
+          "name": "baseline-probe",
+          "exit": 0
+        },
+        {
+          "name": "reject-vulnerable-release",
+          "exit": 0
+        },
+        {
+          "name": "reject-vulnerable-baseline",
+          "exit": 0
+        },
+        {
+          "name": "reject-vulnerable-candidate",
+          "exit": 0
+        },
+        {
+          "name": "baseline-coverage",
+          "exit": 1
+        }
+      ],
+      "notRun": [
+        "candidate-audit",
+        "candidate-audit-production",
+        "candidate-build",
+        "candidate-ci",
+        "candidate-coverage",
+        "candidate-lint",
+        "candidate-probe",
+        "candidate-second-ci",
+        "candidate-security-repo",
+        "candidate-test",
+        "candidate-test-acceptance",
+        "candidate-test-integration",
+        "candidate-test-security",
+        "candidate-test-system",
+        "candidate-tree",
+        "candidate-typecheck",
+        "runner-negative-tests"
+      ],
+      "logSha256": {
+        "baseline-ci.log": "ef1ebdd5f9b89f36aaa3209a6f5b3cd073c15d201aa004c92120318c01add766",
+        "baseline-coverage.log": "06dfd52c28be50b631ee7445c3661766d68dce70c19d1cd756ced7485f2f5628",
+        "baseline-git-init.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "baseline-probe.log": "b9e9c21c1e5cc078a5dafc27cc4459bfdefea358022fe9195d1e1ef005254175",
+        "candidate-git-init.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "reject-vulnerable-baseline.log": "6ddfaec1aebb582e843874a5668ca4e75c2e744da08a015922a5c7475a3950c2",
+        "reject-vulnerable-candidate.log": "6ddfaec1aebb582e843874a5668ca4e75c2e744da08a015922a5c7475a3950c2",
+        "reject-vulnerable-release.log": "6ddfaec1aebb582e843874a5668ca4e75c2e744da08a015922a5c7475a3950c2"
+      },
+      "toolHashes": {
+        "magicast_collect.py": "fc469b75e7fa6adfb7f1604078db5c00308a6bde70be33dab6bcd2a2cc5b9221",
+        "magicast_fixtures.py": "6aab16b0ff61d3d8e95d8db5f0e655a379e16c13e13317b92f0cc610ef5b243f",
+        "magicast_reproduce.py": "e9336005f56086930f9aad2e2d25a01a1f6b867b4aff861337abf72fb9a2fbcd",
+        "magicast_support.py": "9f846cf8bced6be3eb87b3e2bc3c754a4b5ac35a6433073e5d65689044ded812",
+        "test_magicast_probe.py": "aac6f8255655199470e09dc4a4a9d42805c33bbef904aeb738120f488ed7da54",
+        "v1.5.2-magicast-probe.py": "7a4e6c548a0d00348ec6363ce9faf3dd2ad4e1f7b39a23c4aa2aa39f6bab9108"
+      },
+      "resultsAvailable": false,
+      "currentToolsMatchProducer": false
+    }
+  ],
+  "linux": "NOT RUN",
+  "hostedCI": "NOT RUN",
+  "historicalInventory": "Previous schema-1 results are superseded, not silently reused."
+}
