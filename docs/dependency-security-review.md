@@ -503,6 +503,32 @@ PR, merge, tag, release or visibility change is authorized here.
 
 ## v1.5.2 / Story 2: scoped Magicast remediation and adversarial QA
 
+### Current hosted review status (2026-11-05, Asia/Tokyo)
+
+The neutral review commit fab8ba8ee162849f1674599351425676f2aa48eb on
+ci/v1.5.2-magicast-review has PASS hosted CI in Linux and Windows:
+[push run 41946508140](https://github.com/AbrahamFerrero/tribler-stremio-source/actions/runs/41946508140),
+with the exact head_sha and all three jobs successful. Adversarial suites and
+both independent Magicast probes pass; full coverage passes 2168 tests per OS.
+Linux full/production npm audits report zero vulnerabilities. The
+[complete hosted status](qa/v1.5.2-integrity-remediation.md#current-hosted-status-and-closure-2026-11-05-asiatokyo)
+distinguishes platform skips, warnings and gates not configured on Windows.
+
+The [previous run](https://github.com/AbrahamFerrero/tribler-stremio-source/actions/runs/41938301018)
+remains FAIL. Historical inventories, executable-input identities, local
+measurements and negative evidence below retain their original scope and bytes.
+No dependency, version, executable QA, threshold or manifest is changed by this
+status update. Main integration requires explicit owner authorization and the
+permitted protected-branch procedure. CI on the integrated SHA is NOT RUN;
+final version closure and publication remain pending. These documentary changes
+have no new commit or hosted run yet.
+
+### Historical Story 2 local review before hosted portability validation
+
+The remaining Story 2 text records the earlier local phase. Its uncommitted,
+NOT RUN and local-inventory assertions are historical, not the current hosted
+review status. The earlier v1.5.1 and other version sections are unchanged.
+
 The uncommitted candidate remains based on Story 1 commit
 `ae7797e41931778940d87f3a5c58b13c6df31c89`. Its consumer-scoped override
 `"@vitest/coverage-v8": { "magicast": "0.3.5" }` is deliberately outside the
