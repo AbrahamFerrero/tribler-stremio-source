@@ -11,7 +11,6 @@ import stat
 import subprocess
 import sys
 import tempfile
-import threading
 import uuid
 
 class ProbeError(RuntimeError):
@@ -211,12 +210,25 @@ class EvidenceRun:
         self.manifest['error'] = type(error).__name__  # No local paths/env/error contents.
         self.publish()
 
+def _posix_owned_child(command):
+    # Monitor the ownership pipe on this thread. A daemon blocked in Python's
+    # buffered stdin can abort interpreter finalization after a normal exit.
+    import select
+    descriptor=sys.stdin.fileno()
+    with subprocess.Popen(command,stdin=subprocess.DEVNULL) as child:
+        while True:
+            readable,_,_=select.select([descriptor],[],[],.05)
+            if readable and not os.read(descriptor,4096):
+                # owned_process gave this launcher its own session/group.
+                os.killpg(os.getpgrp(),signal.SIGKILL)
+            code=child.poll()
+            if code is not None:
+                return code
+
+
 if __name__ == '__main__':
     if len(sys.argv)<3 or sys.argv[1]!='--owned-child' or sys.stdin.buffer.readline()!=b'GO\n':
         sys.exit(2)
     if os.name != 'nt':
-        def parent_closed():
-            sys.stdin.buffer.read()
-            os.killpg(os.getpgrp(), signal.SIGKILL)
-        threading.Thread(target=parent_closed, daemon=True).start()
+        sys.exit(_posix_owned_child(sys.argv[2:]))
     sys.exit(subprocess.call(sys.argv[2:], stdin=subprocess.DEVNULL))

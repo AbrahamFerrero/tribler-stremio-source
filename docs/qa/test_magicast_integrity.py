@@ -138,4 +138,74 @@ class IntegrityTests(unittest.TestCase):
             self.save(path,{**m,'state':state})
             with self.assertRaisesRegex(ProbeError,'incomplete'):verify(path,current)
 
+class CoveragePathTests(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory(prefix='coverage canonical synthetic ')
+        self.addCleanup(self.temp.cleanup)
+        self.root=Path(self.temp.name)
+        self.source=self.root/'allowed snapshot';self.source.mkdir()
+        self.file=self.source/'synthetic.ts';self.file.write_text('// synthetic')
+        self.report=self.root/'report';self.report.mkdir()
+
+    def coverage(self, filename):
+        (self.report/'coverage-final.json').write_text(json.dumps({str(filename):{'path':str(filename),'s':{}}}))
+
+    def test_canonical_source_and_file_are_used(self):
+        from magicast_reproduce import normalized_coverage
+        self.coverage(self.source/'..'/self.source.name/self.file.name)
+        self.assertEqual(set(normalized_coverage(self.source,self.report)),{'synthetic.ts'})
+
+    def test_outside_snapshot_and_sibling_prefix_are_rejected(self):
+        from magicast_reproduce import normalized_coverage
+        outside=self.root/(self.source.name+' sibling');outside.mkdir()
+        file=outside/'synthetic.ts';file.write_text('// synthetic outside')
+        for path in (file,self.source/'..'/outside.name/file.name):
+            with self.subTest(path=path):
+                self.coverage(path)
+                with self.assertRaises((ProbeError,ValueError)):normalized_coverage(self.source,self.report)
+
+    def test_symlink_cannot_escape_real_snapshot(self):
+        from magicast_reproduce import normalized_coverage
+        outside=self.root/'outside';outside.mkdir()
+        file=outside/'synthetic.ts';file.write_text('// synthetic outside')
+        link=self.source/'escape'
+        if sys.platform=='win32':
+            import os
+            env={**minimal_environment(sys.executable,self.root),'MAGICAST_LINK':str(link),'MAGICAST_TARGET':str(outside)}
+            powershell=Path(os.environ['SYSTEMROOT'])/'System32/WindowsPowerShell/v1.0/powershell.exe'
+            result=subprocess.run([str(powershell),'-NoProfile','-NonInteractive','-Command',
+                'New-Item -ItemType Junction -Path $env:MAGICAST_LINK -Target $env:MAGICAST_TARGET -ErrorAction Stop | Out-Null'],env=env,capture_output=True)
+            self.assertEqual(result.returncode,0,result.stderr.decode(errors='replace'))
+            self.addCleanup(link.rmdir)  # Remove the owned junction, never its target.
+        else:
+            link.symlink_to(outside,target_is_directory=True)
+            self.addCleanup(link.unlink)
+        self.coverage(link/file.name)
+        with self.assertRaises(ProbeError):normalized_coverage(self.source,self.report)
+
+    def test_duplicate_canonical_files_are_rejected(self):
+        from magicast_reproduce import normalized_coverage
+        sub=self.source/'sub';sub.mkdir()
+        alias=sub/'..'/self.file.name
+        (self.report/'coverage-final.json').write_text(json.dumps({str(self.file):{'path':str(self.file)},str(alias):{'path':str(alias)}}))
+        with self.assertRaisesRegex(ProbeError,'duplicate canonical'):normalized_coverage(self.source,self.report)
+
+    @unittest.skipUnless(sys.platform=='win32','Windows 8.3 alias test')
+    def test_windows_short_alias_is_canonical_and_contained(self):
+        import ctypes
+        from ctypes import wintypes
+        from magicast_reproduce import normalized_coverage
+        api=ctypes.WinDLL('kernel32',use_last_error=True)
+        api.GetShortPathNameW.argtypes=[wintypes.LPCWSTR,wintypes.LPWSTR,wintypes.DWORD]
+        api.GetShortPathNameW.restype=wintypes.DWORD
+        buf=ctypes.create_unicode_buffer(32768)
+        self.assertTrue(api.GetShortPathNameW(str(self.source),buf,len(buf)))
+        alias=Path(buf.value)
+        if alias==self.source:self.skipTest('8.3 aliases unavailable on this volume')
+        self.assertEqual(alias.resolve(strict=True),self.source.resolve(strict=True))
+        self.coverage(alias/self.file.name)
+        self.assertEqual(set(normalized_coverage(self.source,self.report)),{'synthetic.ts'})
+        self.coverage(self.file)
+        self.assertEqual(set(normalized_coverage(alias,self.report)),{'synthetic.ts'})
+
 if __name__=='__main__':unittest.main()

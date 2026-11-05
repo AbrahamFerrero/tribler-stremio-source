@@ -82,9 +82,13 @@ def read_probe(source,log):
     return manifest
 
 def normalized_coverage(source,report):
+    source=source.resolve(strict=True)
     result={}
     for filename,value in json.loads((report/'coverage-final.json').read_text(encoding='utf-8')).items():
-        relative=Path(filename).relative_to(source).as_posix()
+        file=Path(filename).resolve(strict=True)
+        require(file.is_file() and file.is_relative_to(source),'coverage path outside snapshot')
+        relative=file.relative_to(source).as_posix()
+        require(relative not in result,'duplicate canonical coverage path')
         result[relative]={**value,'path':relative}
     return result
 

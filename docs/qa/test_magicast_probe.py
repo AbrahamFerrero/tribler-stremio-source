@@ -8,7 +8,7 @@ import sys
 import tempfile
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 HERE=Path(__file__).resolve().parent
 sys.path.insert(0,str(HERE))
@@ -164,6 +164,59 @@ class RunnerTests(unittest.TestCase):
         code="const vm=require('vm');try{vm.runInNewContext('class Consumer {constructor(){while(true){}}};new Consumer()',{}, {timeout:100});process.exit(2)}catch(e){process.exit(e.code==='ERR_SCRIPT_EXECUTION_TIMEOUT'?0:3)}"
         self.assertEqual(owned_process([NODE,'-e',code],self.root,minimal_environment(NODE,self.home),self.root/'vm.log',5),0)
 
+    def test_launcher_preserves_exit_codes_without_finalization_abort(self):
+        for code in (0,7):
+            with self.subTest(code=code):
+                log=self.root/('exit-'+str(code)+'.log')
+                self.assertEqual(owned_process([sys.executable,'-c','raise SystemExit('+str(code)+')'],
+                    self.root,minimal_environment(sys.executable,self.home),log,5),code)
+                self.assertNotIn('Fatal Python error',log.read_text())
+
+    def test_posix_monitor_returns_child_status_without_a_reader_thread(self):
+        from magicast_support import _posix_owned_child
+        child=MagicMock();child.poll.side_effect=[None,7]
+        with patch('magicast_support.subprocess.Popen') as popen, patch('select.select',return_value=([],[],[])) as select, patch('magicast_support.sys.stdin') as pipe:
+            pipe.fileno.return_value=83;popen.return_value.__enter__.return_value=child
+            self.assertEqual(_posix_owned_child(['synthetic']),7)
+            self.assertEqual(select.call_count,2)
+            select.assert_called_with([83],[],[],.05)
+        popen.return_value.__exit__.assert_called_once()
+
+    def test_posix_monitor_eof_kills_only_its_owned_group(self):
+        from magicast_support import _posix_owned_child
+        child=MagicMock()
+        with patch('magicast_support.subprocess.Popen') as popen, patch('select.select',return_value=([83],[],[])), patch('magicast_support.sys.stdin') as pipe, patch('magicast_support.os.read',return_value=b'') as read, patch('magicast_support.os.getpgrp',create=True,return_value=4321), patch('magicast_support.signal.SIGKILL',9,create=True), patch('magicast_support.os.killpg',create=True,side_effect=RuntimeError('synthetic group terminated')) as kill:
+            pipe.fileno.return_value=83;popen.return_value.__enter__.return_value=child
+            with self.assertRaisesRegex(RuntimeError,'synthetic group terminated'):
+                _posix_owned_child(['synthetic'])
+            read.assert_called_once_with(83,4096);kill.assert_called_once_with(4321,9)
+            child.poll.assert_not_called()
+        popen.return_value.__exit__.assert_called_once()
+
+    def test_unexpected_owner_exit_cleans_descendants_and_spares_unrelated(self):
+        heartbeat=self.root/'owner-heartbeat';group=self.root/'owner-group'
+        unrelated=subprocess.Popen([sys.executable,'-c','import time;time.sleep(30)'],env=minimal_environment(sys.executable,self.home))
+        def stop_unrelated():
+            if unrelated.poll() is None:unrelated.kill()
+            unrelated.wait()
+        self.addCleanup(stop_unrelated)
+        payload="import os,time;from pathlib import Path;Path("+repr(str(group))+").write_text(str(os.getpgrp() if os.name!='nt' else os.getpid()));p=Path("+repr(str(heartbeat))+");\nwhile True:\n p.open('a').write('x');time.sleep(.02)"
+        owner="import os,sys,threading,time;from pathlib import Path;sys.path.insert(0,"+repr(str(HERE))+");from magicast_support import owned_process,minimal_environment\nthreading.Thread(target=owned_process,args=("+repr([sys.executable,'-c',payload])+",Path("+repr(str(self.root))+"),minimal_environment(sys.executable,Path("+repr(str(self.home))+")),Path("+repr(str(self.root/'owner.log'))+"),10),daemon=True).start()\ndeadline=time.monotonic()+5\nwhile not Path("+repr(str(heartbeat))+").exists() and time.monotonic()<deadline:time.sleep(.01)\nos._exit(0 if Path("+repr(str(heartbeat))+").exists() else 3)"
+        try:
+            result=subprocess.run([sys.executable,'-I','-c',owner],env=minimal_environment(sys.executable,self.home),capture_output=True,timeout=10)
+            self.assertEqual(result.returncode,0,result.stderr.decode(errors='replace'))
+            self.assertTrue(heartbeat.exists());time.sleep(.2)
+            before=heartbeat.read_bytes();time.sleep(.2)
+            self.assertEqual(heartbeat.read_bytes(),before)
+            self.assertIsNone(unrelated.poll())
+        finally:
+            # Fallback is restricted to the group recorded by this synthetic child.
+            if os.name!='nt' and group.exists():
+                import signal
+                owned=int(group.read_text());self.assertNotEqual(owned,os.getpgrp())
+                try:os.killpg(owned,signal.SIGKILL)
+                except ProcessLookupError:pass
+
     def test_incomplete_reporting_never_promotes_a_failed_run(self):
         from magicast_collect import report_terminal
         directory=self.root/'run-negative';directory.mkdir()
@@ -199,13 +252,32 @@ class RealProbeTests(unittest.TestCase):
         temporary=tempfile.TemporaryDirectory(prefix='magicast-concurrency-')
         self.addCleanup(temporary.cleanup)
         env=dict(minimal_environment(NODE,Path(temporary.name)),MAGICAST_PARENT_CANARY='placeholder-parent-canary')
-        children=[subprocess.Popen([sys.executable,*flags,str(HERE/'v1.5.2-magicast-probe.py'),
-                                  '--node',NODE,'--label','concurrent'],cwd=ROOT,env=e,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-                  for flags,e in [(['-O'],env),([],dict(env,PYTHONOPTIMIZE='1'))]]
+        label=Path(temporary.name).name
+        children=[];completed=[]
+        try:
+            for flags,e in [(['-O'],env),([],dict(env,PYTHONOPTIMIZE='1'))]:
+                children.append(subprocess.Popen([sys.executable,*flags,str(HERE/'v1.5.2-magicast-probe.py'),
+                    '--node',NODE,'--label',label],cwd=ROOT,env=e,stdout=subprocess.PIPE,stderr=subprocess.PIPE))
+            for child in children:
+                out,err=child.communicate(timeout=90)
+                completed.append((child.returncode,out,err))
+        finally:
+            # Drain both probes even if spawning/communicating with one fails.
+            for child in children:
+                if child.poll() is None:child.kill()
+                child.communicate()
         outputs=[]
-        for child in children:
-            out,err=child.communicate(timeout=90)
-            self.assertEqual(child.returncode,0,err.decode(errors='replace'))
+        for code,out,err in completed:
+            diagnostic=err.decode(errors='replace')
+            if code:
+                for path in sorted((ROOT/'.cache/story2/runs').glob('run-*/manifest.json')):
+                    manifest=json.loads(path.read_text(encoding='utf-8'))
+                    if manifest.get('label')!=label:continue
+                    for step in manifest['steps']:
+                        if step['exit']:
+                            log=path.parent/(step['name']+'.log')
+                            diagnostic+='\n'+path.parent.name+'/'+log.name+'\n'+log.read_text(encoding='utf-8',errors='replace')[-8192:]
+            self.assertEqual(code,0,diagnostic)
             outputs.append(json.loads(out))
         self.assertNotEqual(outputs[0]['runId'],outputs[1]['runId'])
         for output in outputs:
